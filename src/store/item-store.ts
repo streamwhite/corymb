@@ -1,3 +1,8 @@
+import { asc, eq } from "drizzle-orm";
+import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type * as schema from "@/db/schema.js";
+import { items } from "@/db/schema.js";
+import { syncToPromise } from "@/lib/sync-to-promise.js";
 import type {
   CreateItemInput,
   Item,
@@ -13,35 +18,63 @@ export type ItemStore = {
   delete: (id: ItemId) => Promise<boolean>;
 };
 
-export function createItemStore(): ItemStore {
-  const items = new Map<ItemId, Item>();
-
+export function createItemStore(
+  db: BetterSQLite3Database<typeof schema>,
+): ItemStore {
   return {
     list() {
-      return Promise.resolve([...items.values()]);
+      return syncToPromise(() => {
+        return db
+          .select()
+          .from(items)
+          .orderBy(asc(items.createdAt))
+          .all() as Item[];
+      });
     },
     create(input: CreateItemInput) {
-      const id = crypto.randomUUID();
-      const createdAt = new Date().toISOString();
-      const item: Item = { id, title: input.title, createdAt };
-      items.set(id, item);
-      return Promise.resolve(item);
+      return syncToPromise(() => {
+        const id = crypto.randomUUID();
+        const [row] = db
+          .insert(items)
+          .values({ id, title: input.title })
+          .returning()
+          .all();
+        if (row === undefined) {
+          throw new Error("Insert item returned no row");
+        }
+        return row as Item;
+      });
     },
     getById(id: ItemId) {
-      return Promise.resolve(items.get(id));
+      return syncToPromise(() => {
+        const row = db.select().from(items).where(eq(items.id, id)).get();
+        return row === undefined ? undefined : (row as Item);
+      });
     },
     update(id: ItemId, input: UpdateItemInput) {
-      const existing = items.get(id);
-      if (!existing) return Promise.resolve(undefined);
-      const next: Item = {
-        ...existing,
-        ...(input.title !== undefined ? { title: input.title } : {}),
-      };
-      items.set(id, next);
-      return Promise.resolve(next);
+      return syncToPromise(() => {
+        const existing = db.select().from(items).where(eq(items.id, id)).get();
+        if (existing === undefined) {
+          return undefined;
+        }
+        const nextTitle =
+          input.title !== undefined ? input.title : existing.title;
+        db.update(items)
+          .set({ title: nextTitle })
+          .where(eq(items.id, id))
+          .run();
+        return {
+          id: existing.id,
+          title: nextTitle,
+          createdAt: existing.createdAt,
+        };
+      });
     },
     delete(id: ItemId) {
-      return Promise.resolve(items.delete(id));
+      return syncToPromise(() => {
+        const result = db.delete(items).where(eq(items.id, id)).run();
+        return result.changes > 0;
+      });
     },
   };
 }

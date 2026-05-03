@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { createApp } from "@/app.js";
 import {
   MSG_ITEM_NOT_FOUND,
   MSG_TITLE_REQUIRED,
@@ -11,6 +10,7 @@ import {
   HEADER_CONTENT_TYPE,
   MIME_JSON,
 } from "./constants.js";
+import { createMemoryApp } from "./helpers/app-memory.js";
 
 function jsonHeaders() {
   return { [HEADER_CONTENT_TYPE]: MIME_JSON } as Record<string, string>;
@@ -18,7 +18,7 @@ function jsonHeaders() {
 
 describe("items CRUD", () => {
   it("lists empty items", async () => {
-    const { app } = createApp();
+    const { app } = createMemoryApp();
     const res = await app.request(ITEMS_BASE_PATH);
     expect(res.status).toBe(200);
     const body = (await res.json()) as unknown;
@@ -26,7 +26,7 @@ describe("items CRUD", () => {
   });
 
   it("creates and returns item", async () => {
-    const { app } = createApp();
+    const { app } = createMemoryApp();
     const res = await app.request(ITEMS_BASE_PATH, {
       method: "POST",
       headers: jsonHeaders(),
@@ -40,7 +40,7 @@ describe("items CRUD", () => {
   });
 
   it("rejects empty title", async () => {
-    const { app } = createApp();
+    const { app } = createMemoryApp();
     const res = await app.request(ITEMS_BASE_PATH, {
       method: "POST",
       headers: jsonHeaders(),
@@ -52,7 +52,7 @@ describe("items CRUD", () => {
   });
 
   it("gets item by id", async () => {
-    const { app } = createApp();
+    const { app } = createMemoryApp();
     const created = await app.request(ITEMS_BASE_PATH, {
       method: "POST",
       headers: jsonHeaders(),
@@ -66,7 +66,7 @@ describe("items CRUD", () => {
   });
 
   it("returns 404 for missing item", async () => {
-    const { app } = createApp();
+    const { app } = createMemoryApp();
     const res = await app.request(
       `${ITEMS_BASE_PATH}/00000000-0000-4000-8000-000000000000`,
     );
@@ -76,7 +76,7 @@ describe("items CRUD", () => {
   });
 
   it("updates item", async () => {
-    const { app } = createApp();
+    const { app } = createMemoryApp();
     const created = await app.request(ITEMS_BASE_PATH, {
       method: "POST",
       headers: jsonHeaders(),
@@ -94,7 +94,7 @@ describe("items CRUD", () => {
   });
 
   it("deletes item", async () => {
-    const { app } = createApp();
+    const { app } = createMemoryApp();
     const created = await app.request(ITEMS_BASE_PATH, {
       method: "POST",
       headers: jsonHeaders(),
@@ -110,7 +110,7 @@ describe("items CRUD", () => {
   });
 
   it("handles concurrent creates", async () => {
-    const { app } = createApp();
+    const { app } = createMemoryApp();
     const bodies = await Promise.all(
       Array.from({ length: CONCURRENT_CREATE_COUNT }, async (_, i) => {
         const res = await app.request(ITEMS_BASE_PATH, {

@@ -4,6 +4,8 @@ import {
   DEFAULT_HTTP_PORT,
   ENV_PORT_KEY,
   HOST_FALLBACK,
+  SIGNAL_SIGINT,
+  SIGNAL_SIGTERM,
 } from "@/constants/server.js";
 
 const RADIX_DECIMAL = 10;
@@ -18,7 +20,7 @@ function resolveListenPort(): number {
 const port = resolveListenPort();
 const { app } = createApp();
 
-serve(
+const server = serve(
   {
     fetch: app.fetch,
     port,
@@ -30,3 +32,22 @@ serve(
     );
   },
 );
+
+let isShuttingDown = false;
+
+function shutdown(): void {
+  if (isShuttingDown) {
+    return;
+  }
+  isShuttingDown = true;
+  server.close((err) => {
+    if (err) {
+      console.error(err);
+      process.exit(1);
+    }
+    process.exit(0);
+  });
+}
+
+process.once(SIGNAL_SIGINT, shutdown);
+process.once(SIGNAL_SIGTERM, shutdown);
