@@ -6,5 +6,8 @@ export const todos = {
     `now use sql lite to replace the in-memory store`,
     `add some basic faker data to the server`,
     `make this server hot reload on code changes if it does not now`,
+    `use drizzle studio to view the data in the server`,
+    `now create a new branch and use bun to replace node and pnpm, bun test to replace vitest`,
+    `make bun test faster with common industry practices`,
   ],
 };

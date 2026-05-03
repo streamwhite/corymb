@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import {
   SESSION_MAX_AGE_SECONDS,
   SESSION_TOKEN_BYTE_LENGTH,
@@ -17,7 +17,7 @@ export function generateRawSessionToken(): string {
 }
 
 export function issueSession(
-  db: BetterSQLite3Database<typeof schema>,
+  db: BunSQLiteDatabase<typeof schema>,
   userId: string,
 ): string {
   const sessionId = randomUUID();
@@ -38,7 +38,7 @@ export function issueSession(
 }
 
 export function revokeSessionByRawToken(
-  db: BetterSQLite3Database<typeof schema>,
+  db: BunSQLiteDatabase<typeof schema>,
   rawToken: string | undefined,
 ): void {
   if (rawToken === undefined || rawToken.length === 0) {

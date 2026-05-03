@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { SEED_ITEM_COUNT, SEED_USER_COUNT } from "@/constants/seed.js";
 import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
 import { createDbBundle } from "@/db/client.js";

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -62,7 +62,7 @@ async function parseJsonUnknown(c: {
   }
 }
 
-export function createAuthRouter(db: BetterSQLite3Database<typeof schema>) {
+export function createAuthRouter(db: BunSQLiteDatabase<typeof schema>) {
   const r = new Hono();
 
   r.post(AUTH_SIGNUP_PATH, async (c) => {

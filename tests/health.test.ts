@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { HEALTH_OK_BODY } from "@/constants/health.js";
 import { HEALTH_BASE_PATH } from "@/constants/routes.js";
 import { createMemoryApp } from "./helpers/app-memory.js";

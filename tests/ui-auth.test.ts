@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { UI_AUTH_BASE_PATH } from "@/constants/routes.js";
 import { AUTH_PAGE_HEADING } from "@/constants/ui.js";
 import { createMemoryApp } from "./helpers/app-memory.js";

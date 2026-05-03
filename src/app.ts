@@ -1,4 +1,4 @@
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { Hono } from "hono";
 import { MSG_INTERNAL } from "@/constants/messages.js";
 import type { DbOptions } from "@/db/client.js";
@@ -13,7 +13,7 @@ import { createItemStore, type ItemStore } from "@/store/item-store.js";
 export type AppBundle = {
   app: Hono;
   store: ItemStore;
-  db: BetterSQLite3Database<typeof schema>;
+  db: BunSQLiteDatabase<typeof schema>;
 };
 
 export function createApp(options?: DbOptions): AppBundle {

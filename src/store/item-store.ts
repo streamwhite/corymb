@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as schema from "@/db/schema.js";
 import { items } from "@/db/schema.js";
 import { syncToPromise } from "@/lib/sync-to-promise.js";
@@ -19,7 +19,7 @@ export type ItemStore = {
 };
 
 export function createItemStore(
-  db: BetterSQLite3Database<typeof schema>,
+  db: BunSQLiteDatabase<typeof schema>,
 ): ItemStore {
   return {
     list() {
@@ -72,8 +72,12 @@ export function createItemStore(
     },
     delete(id: ItemId) {
       return syncToPromise(() => {
-        const result = db.delete(items).where(eq(items.id, id)).run();
-        return result.changes > 0;
+        const rows = db
+          .delete(items)
+          .where(eq(items.id, id))
+          .returning({ id: items.id })
+          .all();
+        return rows.length > 0;
       });
     },
   };

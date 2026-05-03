@@ -10,10 +10,11 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
+    "types": ["bun", "node"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "todos.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "todos.ts", "tsconfig.build.json"]
 }

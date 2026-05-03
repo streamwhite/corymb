@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import {
   MSG_ITEM_NOT_FOUND,
   MSG_TITLE_REQUIRED,

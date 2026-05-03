@@ -1,4 +1,3 @@
-import { serve } from "@hono/node-server";
 import { createApp } from "@/app.js";
 import {
   DEFAULT_HTTP_PORT,
@@ -17,37 +16,35 @@ function resolveListenPort(): number {
   return Number.isFinite(parsed) ? parsed : DEFAULT_HTTP_PORT;
 }
 
-const port = resolveListenPort();
 const { app } = createApp();
 
-const server = serve(
-  {
-    fetch: app.fetch,
-    port,
-    hostname: HOST_FALLBACK,
-  },
-  (info) => {
-    console.info(
-      `Server listening on http://${HOST_FALLBACK}:${String(info.port)}`,
-    );
-  },
-);
+const server = Bun.serve({
+  fetch: app.fetch,
+  port: resolveListenPort(),
+  hostname: HOST_FALLBACK,
+});
+
+console.info(`Server listening on ${server.url.href}`);
 
 let isShuttingDown = false;
 
-function shutdown(): void {
+async function shutdown(): Promise<void> {
   if (isShuttingDown) {
     return;
   }
   isShuttingDown = true;
-  server.close((err) => {
-    if (err) {
-      console.error(err);
-      process.exit(1);
-    }
-    process.exit(0);
-  });
+  try {
+    await server.stop();
+  } catch (err) {
+    console.error(err);
+    process.exitCode = 1;
+  }
+  process.exit(process.exitCode ?? 0);
 }
 
-process.once(SIGNAL_SIGINT, shutdown);
-process.once(SIGNAL_SIGTERM, shutdown);
+process.once(SIGNAL_SIGINT, () => {
+  void shutdown();
+});
+process.once(SIGNAL_SIGTERM, () => {
+  void shutdown();
+});

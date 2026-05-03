@@ -1,4 +1,4 @@
-/** SQLite constraint violation when UNIQUE fails (better-sqlite3). */
+/** SQLite constraint violation when UNIQUE fails (bun:sqlite / SQLite). */
 export function isUniqueConstraintError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) {
     return false;
