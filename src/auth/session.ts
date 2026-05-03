@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import {
@@ -8,19 +8,25 @@ import {
 import type * as schema from "@/db/schema.js";
 import { sessions } from "@/db/schema.js";
 
+function randomBytesHex(byteLength: number): string {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function hashSessionToken(rawToken: string): string {
   return createHash("sha256").update(rawToken, "utf8").digest("hex");
 }
 
 export function generateRawSessionToken(): string {
-  return randomBytes(SESSION_TOKEN_BYTE_LENGTH).toString("hex");
+  return randomBytesHex(SESSION_TOKEN_BYTE_LENGTH);
 }
 
 export function issueSession(
   db: BunSQLiteDatabase<typeof schema>,
   userId: string,
 ): string {
-  const sessionId = randomUUID();
+  const sessionId = crypto.randomUUID();
   const rawToken = generateRawSessionToken();
   const tokenHash = hashSessionToken(rawToken);
   const expiresAt = new Date(

@@ -1,22 +1,26 @@
-import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { validateSignupInput } from "@/auth/credentials.js";
+import {
+  validateSigninInput,
+  validateSignupInput,
+} from "@/auth/credentials.js";
 import { issueSession, revokeSessionByRawToken } from "@/auth/session.js";
 import { isUniqueConstraintError } from "@/auth/sqlite-errors.js";
+import { messageForUserUniqueViolation } from "@/auth/user-unique.js";
 import {
   BCRYPT_COST,
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_SECONDS,
 } from "@/constants/auth.js";
 import {
-  MSG_EMAIL_TAKEN,
   MSG_INVALID_CREDENTIALS,
   MSG_INVALID_JSON,
+  MSG_SIGNUP_UNIQUE_VIOLATION,
 } from "@/constants/messages.js";
 import {
   AUTH_SIGNIN_PATH,
@@ -81,18 +85,23 @@ export function createAuthRouter(db: BunSQLiteDatabase<typeof schema>) {
         .values({
           id: userId,
           email: creds.email,
+          username: creds.username,
           passwordHash,
         })
         .run();
     } catch (err) {
       if (isUniqueConstraintError(err)) {
-        return c.json({ error: MSG_EMAIL_TAKEN }, 409);
+        const conflict = messageForUserUniqueViolation(err);
+        return c.json({ error: conflict ?? MSG_SIGNUP_UNIQUE_VIOLATION }, 409);
       }
       throw err;
     }
     const token = issueSession(db, userId);
     applySessionCookie(c, token);
-    return c.json({ user: { id: userId, email: creds.email } }, 201);
+    return c.json(
+      { user: { id: userId, email: creds.email, username: creds.username } },
+      201,
+    );
   });
 
   r.post(AUTH_SIGNIN_PATH, async (c) => {
@@ -100,7 +109,7 @@ export function createAuthRouter(db: BunSQLiteDatabase<typeof schema>) {
     if (!parsed.ok) {
       return c.json({ error: parsed.error }, 400);
     }
-    const creds = validateSignupInput(parsed.value);
+    const creds = validateSigninInput(parsed.value);
     if (!creds.ok) {
       return c.json({ error: creds.error }, 400);
     }
@@ -117,7 +126,9 @@ export function createAuthRouter(db: BunSQLiteDatabase<typeof schema>) {
     }
     const token = issueSession(db, user.id);
     applySessionCookie(c, token);
-    return c.json({ user: { id: user.id, email: user.email } });
+    return c.json({
+      user: { id: user.id, email: user.email, username: user.username },
+    });
   });
 
   r.post(AUTH_SIGNOUT_PATH, async (c) => {

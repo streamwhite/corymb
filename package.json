@@ -5,12 +5,13 @@
   "type": "module",
   "packageManager": "bun@1.3.10",
   "scripts": {
-    "dev": "bun --watch src/index.ts",
+    "dev": "NODE_ENV=development bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "start:dist": "bun dist/index.js",
-    "build": "bun scripts/rm-dist.mjs && bunx tsc -p tsconfig.build.json && bunx tsc-alias -p tsconfig.build.json && bun scripts/copy-db-migrations.mjs",
-    "test": "bun test --concurrent",
-    "test:watch": "bun test --watch --concurrent",
+    "tls:gencert": "bun scripts/gen-dev-tls.ts",
+    "build": "bun scripts/rm-dist.mjs && bun build src/index.ts --outdir=dist --minify --target=bun --sourcemap=external && bun scripts/copy-db-migrations.mjs",
+    "test": "bun test --coverage --concurrent",
+    "test:watch": "bun test --watch --coverage --concurrent",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "db:generate": "drizzle-kit generate",
@@ -28,7 +29,6 @@
     "@types/bun": "^1.2.19",
     "@types/node": "^22.14.1",
     "drizzle-kit": "^0.31.10",
-    "tsc-alias": "^1.8.17",
     "typescript": "^5.8.3"
   },
   "engines": {

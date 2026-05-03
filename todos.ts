@@ -9,5 +9,8 @@ export const todos = {
     `use drizzle studio to view the data in the server`,
     `now create a new branch and use bun to replace node and pnpm, bun test to replace vitest`,
     `make bun test faster with common industry practices`,
+    `still many node uses in this project, use bun to replace node if possible`,
+    `search for more node uses.`,
+    `use bun build to bundle the server`,
   ],
 };

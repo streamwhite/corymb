@@ -1,4 +1,4 @@
-import path from "node:path";
+import path from "path";
 import {
   DEFAULT_DATA_DIR,
   DEFAULT_DB_FILENAME,

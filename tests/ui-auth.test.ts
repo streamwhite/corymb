@@ -13,6 +13,7 @@ describe("auth ui", () => {
     const html = await res.text();
     expect(html).toContain(AUTH_PAGE_HEADING);
     expect(html).toContain("signup-form");
+    expect(html).toContain("su-username");
     expect(html).toContain("signin-form");
   });
 });

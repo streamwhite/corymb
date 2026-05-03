@@ -1,5 +1,5 @@
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { MSG_INTERNAL } from "@/constants/messages.js";
 import type { DbOptions } from "@/db/client.js";
 import { createDbBundle } from "@/db/client.js";
@@ -20,7 +20,7 @@ export function createApp(options?: DbOptions): AppBundle {
   const bundle = createDbBundle(options);
   const store = createItemStore(bundle.db);
   const app = new Hono();
-  app.onError((err, c) => {
+  app.onError((err: Error, c: Context) => {
     console.error(err);
     return c.json({ error: MSG_INTERNAL }, 500);
   });

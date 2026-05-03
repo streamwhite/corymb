@@ -1,15 +1,13 @@
 import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { mkdirSync } from "fs";
+import path from "path";
 import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
+import { resolveMigrationsFolder } from "@/db/migrations-path.js";
 import { resolveSqlitePathFromEnv } from "@/db/resolve-sqlite-path.js";
 import * as schema from "@/db/schema.js";
-
-const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 export type DbBundle = {
   db: BunSQLiteDatabase<typeof schema>;
@@ -41,6 +39,6 @@ export function createDbBundle(options?: DbOptions): DbBundle {
   sqlite.exec("PRAGMA journal_mode = WAL;");
   sqlite.exec("PRAGMA foreign_keys = ON;");
   const db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder: path.join(MODULE_DIR, "migrations") });
+  migrate(db, { migrationsFolder: resolveMigrationsFolder() });
   return { db, sqlite };
 }

@@ -1,6 +1,6 @@
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { defineConfig } from "drizzle-kit";
+import path from "path";
+import { pathToFileURL } from "url";
 import {
   DEFAULT_DATA_DIR,
   DEFAULT_DB_FILENAME,

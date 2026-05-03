@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
 import { faker } from "@faker-js/faker";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { BCRYPT_COST } from "@/constants/auth.js";
 import {
   SEED_FAKER_SEED,
@@ -23,6 +23,7 @@ function buildUserRows(passwordHash: string) {
   return Array.from({ length: SEED_USER_COUNT }, (_, index) => ({
     id: randomUUID(),
     email: `seed-${String(index)}-${faker.internet.username()}@example.test`,
+    username: `seeduser_${String(index)}_${faker.string.alphanumeric(8).toLowerCase()}`,
     passwordHash,
   }));
 }

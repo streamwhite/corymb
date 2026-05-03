@@ -95,8 +95,13 @@ document.getElementById("signup-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const email = String(fd.get("email") ?? "").trim();
+  const username = String(fd.get("username") ?? "").trim();
   const password = String(fd.get("password") ?? "");
-  const { ok, data } = await postAuth(PATHS.signup, { email, password });
+  const { ok, data } = await postAuth(PATHS.signup, {
+    email,
+    username,
+    password,
+  });
   show(ok ? "Signed up." : (data.error ?? "Request failed"), !ok);
 });
 document.getElementById("signin-form").addEventListener("submit", async (e) => {
@@ -124,6 +129,8 @@ function bodyMarkup(): string {
   <form id="signup-form">
     <label for="su-email">Email</label>
     <input id="su-email" name="email" type="email" autocomplete="email" required />
+    <label for="su-username">Username</label>
+    <input id="su-username" name="username" type="text" autocomplete="username" required />
     <label for="su-password">Password</label>
     <input id="su-password" name="password" type="password" autocomplete="new-password" required />
     <button type="submit">Create account</button>

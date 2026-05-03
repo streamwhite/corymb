@@ -6,6 +6,7 @@ import {
   SIGNAL_SIGINT,
   SIGNAL_SIGTERM,
 } from "@/constants/server.js";
+import { devTlsServeOptions, resolveDevTlsPaths } from "@/server/dev-tls.js";
 
 const RADIX_DECIMAL = 10;
 
@@ -18,17 +19,9 @@ function resolveListenPort(): number {
 
 const { app } = createApp();
 
-const server = Bun.serve({
-  fetch: app.fetch,
-  port: resolveListenPort(),
-  hostname: HOST_FALLBACK,
-});
-
-console.info(`Server listening on ${server.url.href}`);
-
 let isShuttingDown = false;
 
-async function shutdown(): Promise<void> {
+async function shutdown(server: ReturnType<typeof Bun.serve>): Promise<void> {
   if (isShuttingDown) {
     return;
   }
@@ -42,9 +35,28 @@ async function shutdown(): Promise<void> {
   process.exit(process.exitCode ?? 0);
 }
 
-process.once(SIGNAL_SIGINT, () => {
-  void shutdown();
-});
-process.once(SIGNAL_SIGTERM, () => {
-  void shutdown();
-});
+async function main(): Promise<void> {
+  const tlsPaths = resolveDevTlsPaths();
+  const tlsOpts = tlsPaths ? devTlsServeOptions(tlsPaths) : {};
+  if (tlsPaths) {
+    console.info(`TLS enabled (${tlsPaths.cert})`);
+  }
+
+  const server = Bun.serve({
+    fetch: app.fetch,
+    port: resolveListenPort(),
+    hostname: HOST_FALLBACK,
+    ...tlsOpts,
+  });
+
+  console.info(`Server listening on ${server.url.href}`);
+
+  process.once(SIGNAL_SIGINT, () => {
+    void shutdown(server);
+  });
+  process.once(SIGNAL_SIGTERM, () => {
+    void shutdown(server);
+  });
+}
+
+await main();

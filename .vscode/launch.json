@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "bun",
+      "request": "launch",
+      "name": "Server: debug",
+      "program": "${workspaceFolder}/src/index.ts",
+      "cwd": "${workspaceFolder}",
+      "env": { "NODE_ENV": "development" },
+      "watchMode": false,
+      "stopOnEntry": false
+    },
+    {
+      "type": "bun",
+      "request": "launch",
+      "name": "Server: debug + watch",
+      "program": "${workspaceFolder}/src/index.ts",
+      "cwd": "${workspaceFolder}",
+      "env": { "NODE_ENV": "development" },
+      "watchMode": true,
+      "stopOnEntry": false
+    },
+    {
+      "type": "bun",
+      "request": "attach",
+      "name": "Attach to Bun (terminal: bun --inspect …)",
+      "url": "ws://localhost:6499/"
+    }
+  ]
+}
