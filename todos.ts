@@ -14,5 +14,6 @@ export const todos = {
     `use bun build to bundle the server`,
     `use common industry practices(a shell script or better choices) to sync db for dev and production`,
     `now create a another branch, then use bun http server and bun router to replace hono, use bun sql to replace drizzleorm, use all bcryptjs usage with bun password hash, replace all @types/node usage with bun if possible, then remove @types/node  dev deps and bcryptjs deps`,
+    `now remove items and related tests; `,
   ],
 };

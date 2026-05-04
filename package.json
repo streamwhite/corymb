@@ -13,8 +13,8 @@
     "test:watch": "bun test --watch --coverage --concurrent",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "db:migrate": "bun src/db/migrate-cli.ts",
-    "db:sync": "bun scripts/db-sync.ts",
+    "db:migrate:prd": "bun src/db/migrate-cli.ts",
+    "db:migrate:dev": "bun scripts/db-sync.ts",
     "db:seed": "bun src/db/run-seed.ts",
     "standalone": "bun build --compile --minify --bytecode src/index.ts --outfile=myapp && bun scripts/copy-standalone-migrations.mjs"
   },

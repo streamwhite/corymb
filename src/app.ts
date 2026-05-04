@@ -1,14 +1,12 @@
-import { MSG_HTTP_NOT_FOUND, MSG_INTERNAL } from '@/constants/messages.js';
-import { closeDbBundle, createDbBundle, type DbOptions } from '@/db/client.js';
-import { buildServeRoutes } from '@/server/serve-routes.js';
-import type { ItemStore } from '@/store/item-store.js';
-import type { SQL } from 'bun';
+import type { Serve, SQL } from "bun";
+import { MSG_HTTP_NOT_FOUND, MSG_INTERNAL } from "@/constants/messages.js";
+import { closeDbBundle, createDbBundle, type DbOptions } from "@/db/client.js";
+import { buildServeRoutes } from "@/server/serve-routes.js";
 
 export type AppInstance = {
-  routes: NonNullable<Serve['routes']>;
+  routes: NonNullable<Serve["routes"]>;
   fetchNotFound: (req: Request) => Response;
   onServeError: (err: unknown) => Response | Promise<Response>;
-  store: ItemStore;
   sql: SQL;
   close: () => Promise<void>;
 };
@@ -28,7 +26,6 @@ export async function createApp(options?: DbOptions): Promise<AppInstance> {
     routes: buildServeRoutes(bundle),
     fetchNotFound,
     onServeError,
-    store: bundle.store,
     sql: bundle.sql,
     close: () => closeDbBundle(bundle),
   };

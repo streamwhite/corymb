@@ -6,11 +6,9 @@ import { bunSqliteConnectionUrl } from "@/constants/sqlite-url.js";
 import { applyMigrations } from "@/db/apply-migrations.js";
 import { resolveMigrationsFolder } from "@/db/migrations-path.js";
 import { resolveSqlitePathFromEnv } from "@/db/resolve-sqlite-path.js";
-import { createItemStore, type ItemStore } from "@/store/item-store.js";
 
 export type DbBundle = {
   sql: SQL;
-  store: ItemStore;
 };
 
 export type DbOptions = {
@@ -43,8 +41,7 @@ export async function createDbBundle(options?: DbOptions): Promise<DbBundle> {
   const sql = new SQL(url);
   await configureSqlitePragmas(sql);
   await applyMigrations(sql, resolveMigrationsFolder());
-  const store = createItemStore(sql);
-  return { sql, store };
+  return { sql };
 }
 
 export async function closeDbBundle(bundle: DbBundle): Promise<void> {

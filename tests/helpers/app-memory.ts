@@ -1,12 +1,12 @@
-import { createApp } from '@/app.js';
-import { SQLITE_IN_MEMORY } from '@/constants/sqlite.js';
-import { scheduleTestDispose } from '../dispose-guard.js';
+import { createApp } from "@/app.js";
+import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
+import { scheduleTestDispose } from "../dispose-guard.js";
 
 export async function createMemoryApp() {
   const app = await createApp({ databasePath: SQLITE_IN_MEMORY });
   const server = Bun.serve({
     port: 0,
-    hostname: '127.0.0.1',
+    hostname: "127.0.0.1",
     routes: app.routes,
     fetch: app.fetchNotFound,
     error: app.onServeError,
@@ -22,7 +22,6 @@ export async function createMemoryApp() {
       request: (path: string, init?: RequestInit) =>
         fetch(new URL(path, base).href, init),
     },
-    store: app.store,
     sql: app.sql,
   };
 }

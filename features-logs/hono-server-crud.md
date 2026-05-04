@@ -1,4 +1,4 @@
-# Bun server + items CRUD
+# Bun server + auth
 
 ## Workflow
 
@@ -10,9 +10,7 @@ flowchart LR
   R --> C["/health"]
   R --> U["/ui"]
   R --> D["/auth/*"]
-  R --> E["/items / :id"]
-  E --> F[item-store]
-  F --> G[Bun SQL]
+  D --> G[Bun SQL]
   G --> H[(SQLite)]
   I[bun db:seed] --> H
   M[apply-migrations] --> H
@@ -83,7 +81,7 @@ flowchart LR
   SEED -->|"production"| SKIP[ignore seed]
 ```
 
-- **`bun run db:migrate`** — applies Drizzle migrations to the **file** SQLite DB (`SQLITE_PATH`; refuses `:memory:`). Typical **production** step before **`start`** or in a container **init** job.
+- **`bun run db:migrate`** — applies SQL migrations to the **file** SQLite DB (`SQLITE_PATH`; refuses `:memory:`). Typical **production** step before **`start`** or in a container **init** job.
 - **`bun run db:sync`** — migrate locally(after add migrations), then optionally seed when **`DB_SYNC_SEED=1`** (**never** when **`NODE_ENV=production`**). Shortcut: **`bun run db:sync:seed`** for local dev.
 - **`scripts/db-sync.sh`** — POSIX wrapper (make executable: `chmod +x`) that runs **`bun scripts/db-sync.ts`** from the repo root for shell-based pipelines.
 
@@ -112,7 +110,6 @@ flowchart LR
 - Health: `GET /health` → `{ "status": "ok" }`.
 - Auth UI: `GET /ui` — HTML forms + fetch with `credentials: same-origin`.
 - Auth API: `POST /auth/signup`, `/auth/signin`, `/auth/signout` — **`Bun.password`** (bcrypt for user passwords, `src/constants/password-hash.ts` + `BCRYPT_COST`) and SQLite sessions; signup requires unique **`username`** (normalized lowercase, `a-z`, `0-9`, `_`, length 3–32) plus email/password. Session cookie value is **`<sessionId>.<hexSecret>`**; **`sessions.token_hash`** stores **Argon2id PHC** strings from **`Bun.password.hashSync`** ([Argon2 PHC format](https://bun.com/docs/runtime/hashing#argon2-phc-format), options in `src/constants/session-token.ts`). **`0002_clear_sessions`** deletes legacy rows before relying on PHC-only verification.
-- CRUD: `GET/POST /items`, `GET/PUT/DELETE /items/:id`.
-- DB: **[Bun `SQL`](https://bun.sh/docs/api/sql)** (`new SQL(sqliteUrl)` in `src/db/client.ts`); queries via tagged templates in stores and route handlers. Migrations: ordered SQL under `src/db/migrations/` + `meta/_journal.json`, applied by `src/db/apply-migrations.ts` (same **`__drizzle_migrations`** bookkeeping as the former Drizzle migrator). New SQL migrations are added by hand (no `db:generate` script).
+- DB: **[Bun `SQL`](https://bun.sh/docs/api/sql)** (`new SQL(sqliteUrl)` in `src/db/client.ts`); queries via tagged templates in route handlers. Migrations: ordered SQL under `src/db/migrations/` + `meta/_journal.json`, applied by `src/db/apply-migrations.ts` (same **`__drizzle_migrations`** bookkeeping as the former Drizzle migrator). New SQL migrations are added by hand (no `db:generate` script).
 - Default DB file `data/items.sqlite`. Tests use `:memory:` via `tests/helpers/app-memory.ts` (in-process **`Bun.serve`** on a random port + `afterEach` disposal in `tests/dispose-guard.ts`). The helper calls **`fetch(serverUrl + path)`** so the **`routes`** table is exercised (`server.fetch()` would only hit the fallback `fetch` handler).
 - Seed: `bun run db:seed` — faker data; password `seed-password` (`src/constants/seed.ts`).
