@@ -1,17 +1,16 @@
-import { Database } from "bun:sqlite";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { SQL } from "bun";
 import { mkdirSync } from "fs";
 import path from "path";
 import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
+import { bunSqliteConnectionUrl } from "@/constants/sqlite-url.js";
+import { applyMigrations } from "@/db/apply-migrations.js";
 import { resolveMigrationsFolder } from "@/db/migrations-path.js";
 import { resolveSqlitePathFromEnv } from "@/db/resolve-sqlite-path.js";
-import * as schema from "@/db/schema.js";
+import { createItemStore, type ItemStore } from "@/store/item-store.js";
 
 export type DbBundle = {
-  db: BunSQLiteDatabase<typeof schema>;
-  sqlite: Database;
+  sql: SQL;
+  store: ItemStore;
 };
 
 export type DbOptions = {
@@ -32,13 +31,22 @@ function ensureParentDir(dbPath: string): void {
   mkdirSync(path.dirname(dbPath), { recursive: true });
 }
 
-export function createDbBundle(options?: DbOptions): DbBundle {
+async function configureSqlitePragmas(sql: SQL): Promise<void> {
+  await sql.unsafe("PRAGMA journal_mode = WAL;");
+  await sql.unsafe("PRAGMA foreign_keys = ON;");
+}
+
+export async function createDbBundle(options?: DbOptions): Promise<DbBundle> {
   const dbPath = resolveDatabasePath(options);
   ensureParentDir(dbPath);
-  const sqlite = new Database(dbPath);
-  sqlite.exec("PRAGMA journal_mode = WAL;");
-  sqlite.exec("PRAGMA foreign_keys = ON;");
-  const db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder: resolveMigrationsFolder() });
-  return { db, sqlite };
+  const url = bunSqliteConnectionUrl(dbPath);
+  const sql = new SQL(url);
+  await configureSqlitePragmas(sql);
+  await applyMigrations(sql, resolveMigrationsFolder());
+  const store = createItemStore(sql);
+  return { sql, store };
+}
+
+export async function closeDbBundle(bundle: DbBundle): Promise<void> {
+  await bundle.sql.close();
 }

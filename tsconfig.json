@@ -10,7 +10,7 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "types": ["bun", "node"],
+    "types": ["bun"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

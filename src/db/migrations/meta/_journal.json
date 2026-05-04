@@ -15,6 +15,13 @@
       "when": 1777813998874,
       "tag": "0001_absent_leech",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779100000000,
+      "tag": "0002_clear_sessions",
+      "breakpoints": true
     }
   ]
 }

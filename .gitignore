@@ -7,3 +7,7 @@ coverage/
 /certs/*.crt
 /certs/*.key
 /certs/*.pem
+
+# Copied next to compiled binary (`bun run standalone`)
+/db/migrations/
+/myapp

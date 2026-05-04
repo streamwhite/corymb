@@ -34,7 +34,7 @@ function signupBody(email: string, username = VALID_TEST_USERNAME) {
 
 describe("auth", () => {
   it("signs up, sets session cookie, and returns user", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     const res = await app.request(AUTH_SIGNUP_PATH, {
       method: "POST",
       headers: jsonHeaders,
@@ -50,7 +50,7 @@ describe("auth", () => {
   });
 
   it("rejects duplicate email on signup", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     const payload = {
       method: "POST" as const,
       headers: jsonHeaders,
@@ -72,7 +72,7 @@ describe("auth", () => {
   });
 
   it("rejects duplicate username on signup", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     await app.request(AUTH_SIGNUP_PATH, {
       method: "POST",
       headers: jsonHeaders,
@@ -93,7 +93,7 @@ describe("auth", () => {
   });
 
   it("signs in and returns user with new session", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     await app.request(AUTH_SIGNUP_PATH, {
       method: "POST",
       headers: jsonHeaders,
@@ -117,7 +117,7 @@ describe("auth", () => {
   });
 
   it("rejects wrong password", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     await app.request(AUTH_SIGNUP_PATH, {
       method: "POST",
       headers: jsonHeaders,
@@ -137,7 +137,7 @@ describe("auth", () => {
   });
 
   it("rejects signin for unknown user", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     const res = await app.request(AUTH_SIGNIN_PATH, {
       method: "POST",
       headers: jsonHeaders,
@@ -150,7 +150,7 @@ describe("auth", () => {
   });
 
   it("signs out and clears session cookie", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     const signUp = await app.request(AUTH_SIGNUP_PATH, {
       method: "POST",
       headers: jsonHeaders,
@@ -173,7 +173,7 @@ describe("auth", () => {
   });
 
   it("signout without cookie is idempotent", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     const res = await app.request(AUTH_SIGNOUT_PATH, {
       method: "POST",
       headers: jsonHeaders,

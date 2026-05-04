@@ -1,32 +1,35 @@
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import { type Context, Hono } from "hono";
-import { MSG_INTERNAL } from "@/constants/messages.js";
-import type { DbOptions } from "@/db/client.js";
-import { createDbBundle } from "@/db/client.js";
-import type * as schema from "@/db/schema.js";
-import { createAuthRouter } from "@/routes/auth.js";
-import { createHealthRouter } from "@/routes/health.js";
-import { createItemsRouter } from "@/routes/items.js";
-import { createUiRouter } from "@/routes/ui.js";
-import { createItemStore, type ItemStore } from "@/store/item-store.js";
+import { MSG_HTTP_NOT_FOUND, MSG_INTERNAL } from '@/constants/messages.js';
+import { closeDbBundle, createDbBundle, type DbOptions } from '@/db/client.js';
+import { buildServeRoutes } from '@/server/serve-routes.js';
+import type { ItemStore } from '@/store/item-store.js';
+import type { SQL } from 'bun';
 
-export type AppBundle = {
-  app: Hono;
+export type AppInstance = {
+  routes: NonNullable<Serve['routes']>;
+  fetchNotFound: (req: Request) => Response;
+  onServeError: (err: unknown) => Response | Promise<Response>;
   store: ItemStore;
-  db: BunSQLiteDatabase<typeof schema>;
+  sql: SQL;
+  close: () => Promise<void>;
 };
 
-export function createApp(options?: DbOptions): AppBundle {
-  const bundle = createDbBundle(options);
-  const store = createItemStore(bundle.db);
-  const app = new Hono();
-  app.onError((err: Error, c: Context) => {
-    console.error(err);
-    return c.json({ error: MSG_INTERNAL }, 500);
-  });
-  app.route("/", createHealthRouter());
-  app.route("/", createUiRouter());
-  app.route("/", createAuthRouter(bundle.db));
-  app.route("/", createItemsRouter(store));
-  return { app, store, db: bundle.db };
+function fetchNotFound(_req: Request): Response {
+  return Response.json({ error: MSG_HTTP_NOT_FOUND }, { status: 404 });
+}
+
+function onServeError(err: unknown): Response {
+  console.error(err);
+  return Response.json({ error: MSG_INTERNAL }, { status: 500 });
+}
+
+export async function createApp(options?: DbOptions): Promise<AppInstance> {
+  const bundle = await createDbBundle(options);
+  return {
+    routes: buildServeRoutes(bundle),
+    fetchNotFound,
+    onServeError,
+    store: bundle.store,
+    sql: bundle.sql,
+    close: () => closeDbBundle(bundle),
+  };
 }

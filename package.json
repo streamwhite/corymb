@@ -6,29 +6,23 @@
   "packageManager": "bun@1.3.10",
   "scripts": {
     "dev": "NODE_ENV=development bun --watch src/index.ts",
-    "start": "bun src/index.ts",
-    "start:dist": "bun dist/index.js",
+    "start": "NODE_ENV=production bun dist/index.js",
     "tls:gencert": "bun scripts/gen-dev-tls.ts",
-    "build": "bun scripts/rm-dist.mjs && bun build src/index.ts --outdir=dist --minify --target=bun --sourcemap=external && bun scripts/copy-db-migrations.mjs",
+    "build": "bun scripts/rm-dist.mjs && bun build src/index.ts --outdir=dist --production --target=bun && bun scripts/copy-db-migrations.mjs",
     "test": "bun test --coverage --concurrent",
     "test:watch": "bun test --watch --coverage --concurrent",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun src/db/migrate-cli.ts",
+    "db:sync": "bun scripts/db-sync.ts",
     "db:seed": "bun src/db/run-seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "standalone": "bun build --compile --minify --bytecode src/index.ts --outfile=myapp && bun scripts/copy-standalone-migrations.mjs"
   },
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.7.4"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
     "@faker-js/faker": "^10.4.0",
     "@types/bun": "^1.2.19",
-    "@types/node": "^22.14.1",
-    "drizzle-kit": "^0.31.10",
     "typescript": "^5.8.3"
   },
   "engines": {

@@ -1,6 +1,6 @@
 export const BCRYPT_COST_DEFAULT = 12;
 
-/** Used by the test runner preload; keep in sync with bcrypt limits (4–31). */
+/** Used by the test runner preload; keep in sync with Bun bcrypt `cost` limits (4–31). */
 export const BCRYPT_COST_TEST = 4;
 
 export const ENV_BCRYPT_COST = "BCRYPT_COST" as const;

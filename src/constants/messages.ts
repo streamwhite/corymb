@@ -6,6 +6,8 @@ export const MSG_INVALID_JSON = "Invalid JSON body" as const;
 
 export const MSG_INTERNAL = "Internal server error" as const;
 
+export const MSG_HTTP_NOT_FOUND = "Not found" as const;
+
 export const MSG_EMAIL_REQUIRED = "Email is required" as const;
 
 export const MSG_PASSWORD_REQUIRED = "Password is required" as const;

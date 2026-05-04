@@ -5,7 +5,7 @@ import { createMemoryApp } from "./helpers/app-memory.js";
 
 describe("auth ui", () => {
   it("serves the auth page", async () => {
-    const { app } = createMemoryApp();
+    const { app } = await createMemoryApp();
     const res = await app.request(UI_AUTH_BASE_PATH);
     expect(res.status).toBe(200);
     const ct = res.headers.get("content-type");

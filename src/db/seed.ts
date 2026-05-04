@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
-import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
+import type { SQL } from "bun";
 import { BCRYPT_COST } from "@/constants/auth.js";
+import { bcryptHashOptions } from "@/constants/password-hash.js";
 import {
   SEED_FAKER_SEED,
   SEED_ITEM_COUNT,
@@ -9,19 +9,16 @@ import {
   SEED_USER_PASSWORD,
 } from "@/constants/seed.js";
 import type { DbBundle } from "@/db/client.js";
-import { items, users } from "@/db/schema.js";
 
-function truncateAll(bundle: DbBundle): void {
-  bundle.sqlite.exec(`
-DELETE FROM sessions;
-DELETE FROM users;
-DELETE FROM items;
-`);
+async function truncateAll(sql: SQL): Promise<void> {
+  await sql.unsafe("DELETE FROM sessions;");
+  await sql.unsafe("DELETE FROM users;");
+  await sql.unsafe("DELETE FROM items;");
 }
 
 function buildUserRows(passwordHash: string) {
   return Array.from({ length: SEED_USER_COUNT }, (_, index) => ({
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     email: `seed-${String(index)}-${faker.internet.username()}@example.test`,
     username: `seeduser_${String(index)}_${faker.string.alphanumeric(8).toLowerCase()}`,
     passwordHash,
@@ -30,23 +27,33 @@ function buildUserRows(passwordHash: string) {
 
 function buildItemRows() {
   return Array.from({ length: SEED_ITEM_COUNT }, () => ({
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     title: faker.commerce.productName(),
   }));
 }
 
-export function seedDatabase(bundle: DbBundle): void {
+export async function seedDatabase(bundle: DbBundle): Promise<void> {
   faker.seed(SEED_FAKER_SEED);
-  const passwordHash = bcrypt.hashSync(SEED_USER_PASSWORD, BCRYPT_COST);
+  const passwordHash = Bun.password.hashSync(
+    SEED_USER_PASSWORD,
+    bcryptHashOptions(BCRYPT_COST),
+  );
   const userRows = buildUserRows(passwordHash);
   const itemRows = buildItemRows();
-  truncateAll(bundle);
-  bundle.db.transaction((tx) => {
+  const { sql } = bundle;
+  await truncateAll(sql);
+  await sql.begin(async (tx) => {
     for (const row of userRows) {
-      tx.insert(users).values(row).run();
+      await tx`
+        INSERT INTO users (id, email, username, password_hash)
+        VALUES (${row.id}, ${row.email}, ${row.username}, ${row.passwordHash})
+      `;
     }
     for (const row of itemRows) {
-      tx.insert(items).values(row).run();
+      await tx`
+        INSERT INTO items (id, title)
+        VALUES (${row.id}, ${row.title})
+      `;
     }
   });
 }
