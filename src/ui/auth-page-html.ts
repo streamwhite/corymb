@@ -1,4 +1,11 @@
 import {
+  AUTH_TOKEN_BROWSER_STORAGE_KEY,
+  REFRESH_TOKEN_BROWSER_STORAGE_KEY,
+  RESPONSE_FIELD_ACCESS_TOKEN,
+  RESPONSE_FIELD_REFRESH_TOKEN,
+} from "@/constants/auth.js";
+import {
+  AUTH_REFRESH_PATH,
   AUTH_SIGNIN_PATH,
   AUTH_SIGNOUT_PATH,
   AUTH_SIGNUP_PATH,
@@ -10,6 +17,7 @@ function authPathsJson(): string {
     signup: AUTH_SIGNUP_PATH,
     signin: AUTH_SIGNIN_PATH,
     signout: AUTH_SIGNOUT_PATH,
+    refresh: AUTH_REFRESH_PATH,
   });
 }
 
@@ -73,14 +81,28 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 function clientScript(): string {
   const paths = authPathsJson();
+  const accessKey = JSON.stringify(AUTH_TOKEN_BROWSER_STORAGE_KEY);
+  const refreshKey = JSON.stringify(REFRESH_TOKEN_BROWSER_STORAGE_KEY);
+  const accessField = JSON.stringify(RESPONSE_FIELD_ACCESS_TOKEN);
+  const refreshField = JSON.stringify(RESPONSE_FIELD_REFRESH_TOKEN);
   return `<script type="module">
 const PATHS = ${paths};
+const ACCESS_KEY = ${accessKey};
+const REFRESH_KEY = ${refreshKey};
+const ACCESS_FIELD = ${accessField};
+const REFRESH_FIELD = ${refreshField};
 const msg = document.getElementById("msg");
 function show(text, isErr) {
   msg.textContent = text;
   msg.style.color = isErr ? "var(--err)" : "var(--ok)";
 }
-async function postAuth(url, body) {
+function persistTokens(data) {
+  const a = data[ACCESS_FIELD];
+  const r = data[REFRESH_FIELD];
+  if (typeof a === "string" && a.length > 0) sessionStorage.setItem(ACCESS_KEY, a);
+  if (typeof r === "string" && r.length > 0) sessionStorage.setItem(REFRESH_KEY, r);
+}
+async function postJson(url, body) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -97,11 +119,12 @@ document.getElementById("signup-form").addEventListener("submit", async (e) => {
   const email = String(fd.get("email") ?? "").trim();
   const username = String(fd.get("username") ?? "").trim();
   const password = String(fd.get("password") ?? "");
-  const { ok, data } = await postAuth(PATHS.signup, {
+  const { ok, data } = await postJson(PATHS.signup, {
     email,
     username,
     password,
   });
+  if (ok) persistTokens(data);
   show(ok ? "Signed up." : (data.error ?? "Request failed"), !ok);
 });
 document.getElementById("signin-form").addEventListener("submit", async (e) => {
@@ -109,14 +132,18 @@ document.getElementById("signin-form").addEventListener("submit", async (e) => {
   const fd = new FormData(e.target);
   const email = String(fd.get("email") ?? "").trim();
   const password = String(fd.get("password") ?? "");
-  const { ok, data } = await postAuth(PATHS.signin, { email, password });
+  const { ok, data } = await postJson(PATHS.signin, { email, password });
+  if (ok) persistTokens(data);
   show(ok ? "Signed in." : (data.error ?? "Request failed"), !ok);
 });
 document.getElementById("signout-btn").addEventListener("click", async () => {
-  const res = await fetch(PATHS.signout, { method: "POST", credentials: "same-origin" });
-  let data = {};
-  try { data = await res.json(); } catch (_) {}
-  show(res.ok ? "Signed out." : (data.error ?? "Request failed"), !res.ok);
+  const refreshToken = sessionStorage.getItem(REFRESH_KEY) ?? "";
+  const { ok, data } = await postJson(PATHS.signout, { [REFRESH_FIELD]: refreshToken });
+  if (ok) {
+    sessionStorage.removeItem(ACCESS_KEY);
+    sessionStorage.removeItem(REFRESH_KEY);
+  }
+  show(ok ? "Signed out." : (data.error ?? "Request failed"), !ok);
 });
 </script>`;
 }
@@ -148,7 +175,7 @@ function bodyMarkup(): string {
 </section>
 <section aria-labelledby="signout-h">
   <h2 id="signout-h">Sign out</h2>
-  <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--muted);">Ends your session cookie.</p>
+  <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--muted);">Revokes the refresh token stored in this browser.</p>
   <button type="button" class="secondary" id="signout-btn">Sign out</button>
 </section>
 <div id="msg" role="status" aria-live="polite"></div>

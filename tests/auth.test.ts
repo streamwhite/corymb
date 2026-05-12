@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
+import {
+  MIN_PASSWORD_LENGTH,
+  RESPONSE_FIELD_ACCESS_TOKEN,
+  RESPONSE_FIELD_REFRESH_TOKEN,
+} from "@/constants/auth.js";
 import {
   MSG_EMAIL_TAKEN,
   MSG_INVALID_CREDENTIALS,
@@ -16,7 +20,6 @@ import {
   VALID_TEST_USERNAME,
 } from "./constants.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
-import { cookieHeaderFromSetCookie } from "./helpers/cookie.js";
 
 const jsonHeaders = {
   [HEADER_CONTENT_TYPE]: MIME_JSON,
@@ -32,8 +35,14 @@ function signupBody(email: string, username = VALID_TEST_USERNAME) {
   });
 }
 
+type TokenPair = {
+  user: { id: string; email: string; username: string };
+  [RESPONSE_FIELD_ACCESS_TOKEN]: string;
+  [RESPONSE_FIELD_REFRESH_TOKEN]: string;
+};
+
 describe("auth", () => {
-  it("signs up, sets session cookie, and returns user", async () => {
+  it("signs up, returns user and access + refresh tokens (no cookie)", async () => {
     const { app } = await createMemoryApp();
     const res = await app.request(AUTH_SIGNUP_PATH, {
       method: "POST",
@@ -41,12 +50,14 @@ describe("auth", () => {
       body: signupBody("u1@example.com", "user_one"),
     });
     expect(res.status).toBe(201);
-    const body = (await res.json()) as {
-      user: { id: string; email: string; username: string };
-    };
+    const body = (await res.json()) as TokenPair;
     expect(body.user.email).toBe("u1@example.com");
     expect(body.user.username).toBe("user_one");
-    expect(res.headers.get("set-cookie")).toContain("session=");
+    expect(typeof body[RESPONSE_FIELD_ACCESS_TOKEN]).toBe("string");
+    expect(typeof body[RESPONSE_FIELD_REFRESH_TOKEN]).toBe("string");
+    expect(body[RESPONSE_FIELD_ACCESS_TOKEN].split(".").length).toBe(3);
+    expect(body[RESPONSE_FIELD_REFRESH_TOKEN].length).toBeGreaterThan(40);
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 
   it("rejects duplicate email on signup", async () => {
@@ -92,7 +103,7 @@ describe("auth", () => {
     expect(err.error).toBe(MSG_USERNAME_TAKEN);
   });
 
-  it("signs in and returns user with new session", async () => {
+  it("signs in and returns user with new token pair", async () => {
     const { app } = await createMemoryApp();
     await app.request(AUTH_SIGNUP_PATH, {
       method: "POST",
@@ -108,12 +119,12 @@ describe("auth", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      user: { email: string; username: string };
-    };
+    const body = (await res.json()) as TokenPair;
     expect(body.user.email).toBe("in@example.com");
     expect(body.user.username).toBe("in_user");
-    expect(res.headers.get("set-cookie")).toContain("session=");
+    expect(typeof body[RESPONSE_FIELD_ACCESS_TOKEN]).toBe("string");
+    expect(typeof body[RESPONSE_FIELD_REFRESH_TOKEN]).toBe("string");
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 
   it("rejects wrong password", async () => {
@@ -149,34 +160,37 @@ describe("auth", () => {
     expect(res.status).toBe(401);
   });
 
-  it("signs out and clears session cookie", async () => {
+  it("signs out with refreshToken body and revokes session", async () => {
     const { app } = await createMemoryApp();
     const signUp = await app.request(AUTH_SIGNUP_PATH, {
       method: "POST",
       headers: jsonHeaders,
       body: signupBody("out@example.com", "out_user"),
     });
-    const cookieIn = cookieHeaderFromSetCookie(
-      signUp.headers.get("set-cookie"),
-    );
-    expect(cookieIn).toBeDefined();
+    const su = (await signUp.json()) as TokenPair;
+    const refreshToken = su[RESPONSE_FIELD_REFRESH_TOKEN];
+    expect(refreshToken.length).toBeGreaterThan(0);
     const out = await app.request(AUTH_SIGNOUT_PATH, {
       method: "POST",
-      headers: { ...jsonHeaders, ...cookieIn },
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        [RESPONSE_FIELD_REFRESH_TOKEN]: refreshToken,
+      }),
     });
     expect(out.status).toBe(200);
     const cleared = (await out.json()) as { ok: boolean };
     expect(cleared.ok).toBe(true);
-    const setCookie = out.headers.get("set-cookie");
-    expect(setCookie).toBeTruthy();
-    expect(setCookie?.toLowerCase()).toMatch(/max-age=0|expires=/);
+    expect(out.headers.get("set-cookie")).toBeNull();
   });
 
-  it("signout without cookie is idempotent", async () => {
+  it("signout with invalid refreshToken body is idempotent", async () => {
     const { app } = await createMemoryApp();
     const res = await app.request(AUTH_SIGNOUT_PATH, {
       method: "POST",
       headers: jsonHeaders,
+      body: JSON.stringify({
+        [RESPONSE_FIELD_REFRESH_TOKEN]: "bogus",
+      }),
     });
     expect(res.status).toBe(200);
   });

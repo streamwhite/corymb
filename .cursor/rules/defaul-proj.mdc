@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+do not nodejs features until you have to since this is bunjs project.

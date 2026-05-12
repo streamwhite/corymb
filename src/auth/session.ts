@@ -1,5 +1,6 @@
 import type { SQL } from "bun";
 import {
+  AUTH_BEARER_HEADER_PREFIX,
   SESSION_MAX_AGE_SECONDS,
   SESSION_TOKEN_BYTE_LENGTH,
 } from "@/constants/auth.js";
@@ -30,24 +31,38 @@ export type ParsedSessionCookie = {
 };
 
 export function parseSessionCookieValue(
-  cookieValue: string | undefined,
+  compositeToken: string | undefined,
 ): ParsedSessionCookie | null {
   if (
-    cookieValue === undefined ||
-    cookieValue.length <= SESSION_UUID_CHAR_LENGTH
+    compositeToken === undefined ||
+    compositeToken.length <= SESSION_UUID_CHAR_LENGTH
   ) {
     return null;
   }
   const sep = SESSION_COOKIE_PART_SEPARATOR;
-  if (cookieValue.at(SESSION_UUID_CHAR_LENGTH) !== sep) {
+  if (compositeToken.at(SESSION_UUID_CHAR_LENGTH) !== sep) {
     return null;
   }
-  const sessionId = cookieValue.slice(0, SESSION_UUID_CHAR_LENGTH);
-  const rawToken = cookieValue.slice(SESSION_UUID_CHAR_LENGTH + sep.length);
+  const sessionId = compositeToken.slice(0, SESSION_UUID_CHAR_LENGTH);
+  const rawToken = compositeToken.slice(SESSION_UUID_CHAR_LENGTH + sep.length);
   if (rawToken.length === 0) {
     return null;
   }
   return { sessionId, rawToken };
+}
+
+export function parseBearerSessionToken(
+  authorizationHeader: string | null,
+): string | null {
+  if (authorizationHeader === null || authorizationHeader.length === 0) {
+    return null;
+  }
+  const prefix = AUTH_BEARER_HEADER_PREFIX;
+  if (!authorizationHeader.startsWith(prefix)) {
+    return null;
+  }
+  const rest = authorizationHeader.slice(prefix.length).trim();
+  return rest.length === 0 ? null : rest;
 }
 
 function firstSessionRow(rows: unknown): SessionRow | undefined {
@@ -71,13 +86,13 @@ export async function issueSession(sql: SQL, userId: string): Promise<string> {
   return `${sessionId}${SESSION_COOKIE_PART_SEPARATOR}${rawToken}`;
 }
 
-export async function revokeSessionByRawToken(
+async function loadValidatedSession(
   sql: SQL,
-  rawCookie: string | undefined,
-): Promise<void> {
-  const parsed = parseSessionCookieValue(rawCookie);
+  compositeSessionToken: string | undefined,
+): Promise<SessionRow | undefined> {
+  const parsed = parseSessionCookieValue(compositeSessionToken);
   if (parsed === null) {
-    return;
+    return undefined;
   }
   const rows = await sql`
     SELECT id, user_id AS userId, token_hash AS tokenHash,
@@ -87,10 +102,45 @@ export async function revokeSessionByRawToken(
   `;
   const row = firstSessionRow(rows);
   if (row === undefined) {
-    return;
+    return undefined;
   }
   if (!Bun.password.verifySync(parsed.rawToken, row.tokenHash)) {
+    return undefined;
+  }
+  return row;
+}
+
+export async function revokeSessionByRawToken(
+  sql: SQL,
+  compositeSessionToken: string | undefined,
+): Promise<void> {
+  const row = await loadValidatedSession(sql, compositeSessionToken);
+  if (row === undefined) {
     return;
   }
-  await sql`DELETE FROM sessions WHERE id = ${parsed.sessionId}`;
+  await sql`DELETE FROM sessions WHERE id = ${row.id}`;
+}
+
+export type ConsumeRefreshTokenResult =
+  | { ok: true; userId: string }
+  | { ok: false };
+
+/** Verifies + deletes the refresh-token session (one-shot consume for rotation). */
+export async function consumeRefreshToken(
+  sql: SQL,
+  compositeSessionToken: string | undefined,
+): Promise<ConsumeRefreshTokenResult> {
+  const row = await loadValidatedSession(sql, compositeSessionToken);
+  if (row === undefined) {
+    return { ok: false };
+  }
+  await sql`DELETE FROM sessions WHERE id = ${row.id}`;
+  return { ok: true, userId: row.userId };
+}
+
+export async function revokeAllSessionsForUser(
+  sql: SQL,
+  userId: string,
+): Promise<void> {
+  await sql`DELETE FROM sessions WHERE user_id = ${userId}`;
 }

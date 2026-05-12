@@ -4,6 +4,7 @@ export type UserRow = {
   email: string;
   username: string;
   passwordHash: string;
+  emailVerified: number;
   createdAt: string;
 };
 
@@ -13,5 +14,15 @@ export type SessionRow = {
   userId: string;
   tokenHash: string;
   expiresAt: string;
+  createdAt: string;
+};
+
+/** Shared row shape for `password_resets` / `email_verifications` (single-use tokens). */
+export type AuthTokenRow = {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: string;
+  usedAt: string | null;
   createdAt: string;
 };

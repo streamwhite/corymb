@@ -11,3 +11,5 @@ coverage/
 # Copied next to compiled binary (`bun run standalone`)
 /db/migrations/
 /myapp
+
+todos.ts

@@ -1,9 +1,12 @@
-import { createApp } from "@/app.js";
+import { type CreateAppOptions, createApp } from "@/app.js";
 import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
 import { scheduleTestDispose } from "../dispose-guard.js";
 
-export async function createMemoryApp() {
-  const app = await createApp({ databasePath: SQLITE_IN_MEMORY });
+export async function createMemoryApp(options?: CreateAppOptions) {
+  const app = await createApp({
+    databasePath: SQLITE_IN_MEMORY,
+    ...options,
+  });
   const server = Bun.serve({
     port: 0,
     hostname: "127.0.0.1",

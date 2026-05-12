@@ -29,6 +29,13 @@
       "when": 1779200000000,
       "tag": "0003_drop_items",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1779300000000,
+      "tag": "0004_email_auth_tokens",
+      "breakpoints": true
     }
   ]
 }

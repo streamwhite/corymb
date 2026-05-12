@@ -1,5 +1,5 @@
 {
-  "name": "hono-hands-on",
+  "name": "bunjs-hands-on",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     "start": "NODE_ENV=production bun dist/index.js",
     "tls:gencert": "bun scripts/gen-dev-tls.ts",
     "build": "bun scripts/rm-dist.mjs && bun build src/index.ts --outdir=dist --production --target=bun && bun scripts/copy-db-migrations.mjs",
-    "test": "bun test --coverage --concurrent",
-    "test:watch": "bun test --watch --coverage --concurrent",
+    "test": "bun test --coverage",
+    "test:watch": "bun test --watch --coverage",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "db:migrate:prd": "bun src/db/migrate-cli.ts",

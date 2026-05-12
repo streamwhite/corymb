@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "bun: server (inspect-wait + hot, then Attach)",
+      "type": "shell",
+      "command": "NODE_ENV=development bun --inspect-wait=localhost:6499 --hot --no-clear-screen ${workspaceFolder}/src/index.ts",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      }
+    }
+  ]
+}
