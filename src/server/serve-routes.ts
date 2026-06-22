@@ -25,6 +25,7 @@ import {
   UI_AUTH_BASE_PATH,
   UPLOAD_BASE_PATH,
 } from "@/constants/routes.js";
+import type { Cache } from "@/cache/cache-types.js";
 import { withSecurityHeadersFromRequest } from "@/http/security-headers.js";
 import type { Mailer } from "@/mail/mailer-types.js";
 import { apiDocsResponse } from "@/server/api-docs.js";
@@ -49,6 +50,7 @@ export type RouteBundle = {
   sql: SQL;
   uploadDir: string;
   mailer: Mailer;
+  cache: Cache;
 };
 
 export type ServeRoutesOptions = {
@@ -96,7 +98,7 @@ export function buildServeRoutes(
   bundle: RouteBundle,
   opts?: ServeRoutesOptions,
 ): NonNullable<Serve["routes"]> {
-  const { sql, uploadDir, mailer } = bundle;
+  const { sql, uploadDir, mailer, cache } = bundle;
   const docsAccess = opts?.docsAccess ?? DEFAULT_DOCS_ACCESS_MODE;
   const strict = RATE_LIMIT_STRATEGY_STRICT;
   const standard = RATE_LIMIT_STRATEGY_STANDARD;
@@ -112,32 +114,38 @@ export function buildServeRoutes(
       GET: withRateLimit(relaxed, authUiHandler),
     },
     [AUTH_SIGNUP_PATH]: {
-      POST: withRateLimit(strict, (req) => handleAuthSignup(req, sql)),
+      POST: withRateLimit(strict, (req) => handleAuthSignup(req, sql, cache)),
     },
     [AUTH_SIGNIN_PATH]: {
-      POST: withRateLimit(strict, (req) => handleAuthSignin(req, sql)),
+      POST: withRateLimit(strict, (req) => handleAuthSignin(req, sql, cache)),
     },
     [AUTH_SIGNOUT_PATH]: {
-      POST: withRateLimit(standard, (req) => handleAuthSignout(req, sql)),
+      POST: withRateLimit(standard, (req) =>
+        handleAuthSignout(req, sql, cache),
+      ),
     },
     [AUTH_REFRESH_PATH]: {
-      POST: withRateLimit(strict, (req) => handleAuthRefresh(req, sql)),
+      POST: withRateLimit(strict, (req) => handleAuthRefresh(req, sql, cache)),
     },
     [AUTH_FORGOT_PASSWORD_PATH]: {
       POST: withRateLimit(strict, (req) =>
-        handleForgotPassword(req, sql, mailer),
+        handleForgotPassword(req, sql, mailer, cache),
       ),
     },
     [AUTH_RESET_PASSWORD_PATH]: {
-      POST: withRateLimit(strict, (req) => handleResetPassword(req, sql)),
+      POST: withRateLimit(strict, (req) =>
+        handleResetPassword(req, sql, cache),
+      ),
     },
     [AUTH_SEND_VERIFICATION_PATH]: {
       POST: withRateLimit(strict, (req) =>
-        handleSendVerification(req, sql, mailer),
+        handleSendVerification(req, sql, mailer, cache),
       ),
     },
     [AUTH_VERIFY_EMAIL_PATH]: {
-      GET: withRateLimit(standard, (req) => handleVerifyEmail(req, sql)),
+      GET: withRateLimit(standard, (req) =>
+        handleVerifyEmail(req, sql, cache),
+      ),
     },
     [UPLOAD_BASE_PATH]: {
       POST: withRateLimit(standard, (req) =>

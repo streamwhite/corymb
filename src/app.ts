@@ -8,6 +8,8 @@ import {
   HTTP_STATUS_NOT_FOUND,
 } from "@/constants/http-status.js";
 import { MSG_HTTP_NOT_FOUND, MSG_INTERNAL } from "@/constants/messages.js";
+import type { Cache } from "@/cache/cache-types.js";
+import { closeCacheBundle, createCacheBundle } from "@/cache/client.js";
 import { closeDbBundle, createDbBundle, type DbOptions } from "@/db/client.js";
 import {
   withSecurityHeaders,
@@ -24,6 +26,10 @@ export type CreateAppOptions = DbOptions & {
   uploadDir?: string;
   /** Optional mailer (defaults to console mailer via env). */
   mailer?: Mailer;
+  /** Test-only cache override (defaults to Redis via `REDIS_URL`). */
+  cache?: Cache;
+  /** Override Redis URL when creating the default cache bundle. */
+  redisUrl?: string;
 };
 
 export type AppInstance = {
@@ -31,6 +37,7 @@ export type AppInstance = {
   fetchNotFound: (req: Request) => Response;
   onServeError: (err: unknown) => Response | Promise<Response>;
   sql: SQL;
+  cache: Cache;
   close: () => Promise<void>;
 };
 
@@ -54,18 +61,27 @@ function onServeError(err: unknown): Response {
 export async function createApp(
   options?: CreateAppOptions,
 ): Promise<AppInstance> {
-  const bundle = await createDbBundle(options);
+  const [bundle, cacheBundle] = await Promise.all([
+    createDbBundle(options),
+    options?.cache !== undefined
+      ? Promise.resolve({ cache: options.cache, close: () => {} })
+      : createCacheBundle({ redisUrl: options?.redisUrl }),
+  ]);
   const docsAccess = options?.docsAccess ?? DEFAULT_DOCS_ACCESS_MODE;
   const uploadDir = resolveUploadRoot({ uploadDir: options?.uploadDir });
   const mailer = options?.mailer ?? resolveMailerFromEnv();
   return {
     routes: buildServeRoutes(
-      { sql: bundle.sql, uploadDir, mailer },
+      { sql: bundle.sql, uploadDir, mailer, cache: cacheBundle.cache },
       { docsAccess },
     ),
     fetchNotFound,
     onServeError,
     sql: bundle.sql,
-    close: () => closeDbBundle(bundle),
+    cache: cacheBundle.cache,
+    close: async () => {
+      await closeDbBundle(bundle);
+      closeCacheBundle(cacheBundle);
+    },
   };
 }

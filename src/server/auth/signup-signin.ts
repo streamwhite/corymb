@@ -4,7 +4,9 @@ import {
   validateSignupInput,
 } from "@/auth/credentials.js";
 import { isUniqueConstraintError } from "@/auth/sqlite-errors.js";
+import { findUserByEmail } from "@/auth/user-queries.js";
 import { messageForUserUniqueViolation } from "@/auth/user-unique.js";
+import type { Cache } from "@/cache/cache-types.js";
 import { BCRYPT_COST } from "@/constants/auth.js";
 import {
   HTTP_STATUS_BAD_REQUEST,
@@ -18,20 +20,12 @@ import {
   MSG_SIGNUP_UNIQUE_VIOLATION,
 } from "@/constants/messages.js";
 import { bcryptHashOptions } from "@/constants/password-hash.js";
-import type { UserRow } from "@/db/db-types.js";
 import { readJsonUnknown } from "@/http/json-body.js";
 import { jsonApiResponse } from "@/http/json-response.js";
 import {
   issueSessionTokens,
   tokensResponseBody,
 } from "@/server/auth/shared.js";
-
-function firstUserRow(rows: unknown): UserRow | undefined {
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return undefined;
-  }
-  return rows[0] as UserRow;
-}
 
 async function readJsonOrError(
   req: Request,
@@ -78,6 +72,7 @@ async function insertNewUser(
 export async function handleAuthSignup(
   req: Request,
   sql: SQL,
+  _cache: Cache,
 ): Promise<Response> {
   const body = await readJsonOrError(req);
   if (!body.ok) {
@@ -116,22 +111,10 @@ export async function handleAuthSignup(
   );
 }
 
-async function findUserByEmail(
-  sql: SQL,
-  email: string,
-): Promise<UserRow | undefined> {
-  const rows = await sql`
-    SELECT id, email, username, password_hash AS passwordHash,
-           email_verified AS emailVerified, created_at AS createdAt
-    FROM users
-    WHERE email = ${email}
-  `;
-  return firstUserRow(rows);
-}
-
 export async function handleAuthSignin(
   req: Request,
   sql: SQL,
+  cache: Cache,
 ): Promise<Response> {
   const body = await readJsonOrError(req);
   if (!body.ok) {
@@ -145,7 +128,7 @@ export async function handleAuthSignin(
       new URL(req.url),
     );
   }
-  const user = await findUserByEmail(sql, creds.email);
+  const user = await findUserByEmail(cache, sql, creds.email);
   if (
     user === undefined ||
     !Bun.password.verifySync(creds.password, user.passwordHash)

@@ -1,5 +1,6 @@
 import type { SQL } from "bun";
 import { type CreateAppOptions, createApp } from "@/app.js";
+import { createNoopCache } from "@/cache/noop-cache.js";
 import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
 import {
   createInMemoryMailer,
@@ -21,6 +22,7 @@ export async function createMemoryAppWithMailer(
   const mailer = createInMemoryMailer();
   const app = await createApp({
     databasePath: SQLITE_IN_MEMORY,
+    cache: createNoopCache(),
     mailer,
     ...options,
   });

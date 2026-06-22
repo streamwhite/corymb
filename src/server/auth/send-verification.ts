@@ -1,5 +1,7 @@
 import type { SQL } from "bun";
 import { issueAuthToken } from "@/auth/auth-tokens.js";
+import { findUserById } from "@/auth/user-queries.js";
+import type { Cache } from "@/cache/cache-types.js";
 import {
   EMAIL_VERIFICATIONS_TABLE,
   EMAIL_VERIFY_TTL_SECONDS,
@@ -19,37 +21,17 @@ import { buildEmailVerifyLink } from "@/mail/mail-links.js";
 import type { Mailer } from "@/mail/mailer-types.js";
 import { requireAccessToken } from "@/server/auth/shared.js";
 
-type UserEmailRow = { email: string; emailVerified: number };
-
-function firstUserEmailRow(rows: unknown): UserEmailRow | undefined {
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return undefined;
-  }
-  return rows[0] as UserEmailRow;
-}
-
-async function findUserEmail(
-  sql: SQL,
-  userId: string,
-): Promise<UserEmailRow | undefined> {
-  const rows = await sql`
-    SELECT email, email_verified AS emailVerified
-    FROM users
-    WHERE id = ${userId}
-  `;
-  return firstUserEmailRow(rows);
-}
-
 export async function handleSendVerification(
   req: Request,
   sql: SQL,
   mailer: Mailer,
+  cache: Cache,
 ): Promise<Response> {
   const guard = await requireAccessToken(req);
   if (!guard.ok) {
     return guard.response;
   }
-  const user = await findUserEmail(sql, guard.claims.sub);
+  const user = await findUserById(cache, sql, guard.claims.sub);
   if (user === undefined) {
     return jsonApiResponse(
       { error: MSG_HTTP_NOT_FOUND },

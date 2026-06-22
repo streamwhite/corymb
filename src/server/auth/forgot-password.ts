@@ -1,6 +1,8 @@
 import type { SQL } from "bun";
 import { issueAuthToken } from "@/auth/auth-tokens.js";
 import { normalizeEmail } from "@/auth/credentials.js";
+import { findUserIdByEmail } from "@/auth/user-queries.js";
+import type { Cache } from "@/cache/cache-types.js";
 import {
   PASSWORD_RESET_TTL_SECONDS,
   PASSWORD_RESETS_TABLE,
@@ -19,23 +21,6 @@ import { jsonApiResponse } from "@/http/json-response.js";
 import { passwordResetBody } from "@/mail/mail-bodies.js";
 import { buildPasswordResetLink } from "@/mail/mail-links.js";
 import type { Mailer } from "@/mail/mailer-types.js";
-
-type UserIdRow = { id: string };
-
-function firstUserIdRow(rows: unknown): UserIdRow | undefined {
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return undefined;
-  }
-  return rows[0] as UserIdRow;
-}
-
-async function findUserIdByEmail(
-  sql: SQL,
-  email: string,
-): Promise<string | undefined> {
-  const rows = await sql`SELECT id FROM users WHERE email = ${email}`;
-  return firstUserIdRow(rows)?.id;
-}
 
 function pickEmail(value: unknown): string {
   if (typeof value !== "object" || value === null) {
@@ -69,6 +54,7 @@ export async function handleForgotPassword(
   req: Request,
   sql: SQL,
   mailer: Mailer,
+  cache: Cache,
 ): Promise<Response> {
   const parsed = await readJsonUnknown(req);
   if (!parsed.ok) {
@@ -86,7 +72,7 @@ export async function handleForgotPassword(
       new URL(req.url),
     );
   }
-  const userId = await findUserIdByEmail(sql, email);
+  const userId = await findUserIdByEmail(cache, sql, email);
   if (userId !== undefined) {
     const token = await issueAuthToken(
       sql,

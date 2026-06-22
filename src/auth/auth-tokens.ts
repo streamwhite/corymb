@@ -1,11 +1,20 @@
 import type { SQL } from "bun";
+import type { Cache } from "@/cache/cache-types.js";
+import { invalidateAuthToken } from "@/cache/invalidate.js";
+import { authTokenKey } from "@/cache/keys.js";
 import {
   AUTH_TOKEN_BYTE_LENGTH,
   AUTH_TOKEN_PART_SEPARATOR,
   AUTH_TOKEN_UUID_CHAR_LENGTH,
+  EMAIL_VERIFY_TTL_SECONDS,
   type EMAIL_VERIFICATIONS_TABLE,
+  PASSWORD_RESET_TTL_SECONDS,
   PASSWORD_RESETS_TABLE,
 } from "@/constants/auth-tokens.js";
+import {
+  resolveCacheSessionTtlSecondsFromEnv,
+  ttlSecondsUntilExpiry,
+} from "@/constants/redis.js";
 import { SESSION_ARGON2_OPTS } from "@/constants/session-token.js";
 import type { AuthTokenRow } from "@/db/db-types.js";
 
@@ -105,7 +114,7 @@ function firstAuthTokenRow(rows: unknown): AuthTokenRow | undefined {
   return rows[0] as AuthTokenRow;
 }
 
-async function selectAuthToken(
+async function loadAuthTokenFromDb(
   sql: SQL,
   table: AuthTokenTable,
   rowId: string,
@@ -130,6 +139,44 @@ async function selectAuthToken(
   );
 }
 
+function defaultTtlForTable(table: AuthTokenTable): number {
+  if (table === PASSWORD_RESETS_TABLE) {
+    return PASSWORD_RESET_TTL_SECONDS;
+  }
+  return EMAIL_VERIFY_TTL_SECONDS;
+}
+
+async function selectAuthToken(
+  cache: Cache,
+  sql: SQL,
+  table: AuthTokenTable,
+  rowId: string,
+): Promise<AuthTokenRow | undefined> {
+  const capSeconds = resolveCacheSessionTtlSecondsFromEnv();
+  const key = authTokenKey(table, rowId);
+  const cached = await cache.get(key);
+  if (cached !== null) {
+    try {
+      const row = JSON.parse(cached) as AuthTokenRow;
+      if (row.usedAt === null && !isExpired(row.expiresAt)) {
+        return row;
+      }
+    } catch {
+      // ignore corrupt cache entry
+    }
+  }
+  const row = await loadAuthTokenFromDb(sql, table, rowId);
+  if (row === undefined || row.usedAt !== null || isExpired(row.expiresAt)) {
+    return undefined;
+  }
+  const ttlSeconds = ttlSecondsUntilExpiry(
+    row.expiresAt,
+    Math.min(capSeconds, defaultTtlForTable(table)),
+  );
+  await cache.set(key, JSON.stringify(row), ttlSeconds);
+  return row;
+}
+
 async function markAuthTokenUsed(
   sql: SQL,
   table: AuthTokenTable,
@@ -151,6 +198,7 @@ function isExpired(isoTimestamp: string): boolean {
 }
 
 export async function consumeAuthToken(
+  cache: Cache,
   sql: SQL,
   table: AuthTokenTable,
   composite: string | undefined,
@@ -159,7 +207,7 @@ export async function consumeAuthToken(
   if (parsed === null) {
     return { ok: false };
   }
-  const row = await selectAuthToken(sql, table, parsed.rowId);
+  const row = await selectAuthToken(cache, sql, table, parsed.rowId);
   if (row === undefined) {
     return { ok: false };
   }
@@ -173,5 +221,6 @@ export async function consumeAuthToken(
     return { ok: false };
   }
   await markAuthTokenUsed(sql, table, row.id);
+  await invalidateAuthToken(cache, table, row.id);
   return { ok: true, userId: row.userId, rowId: row.id };
 }

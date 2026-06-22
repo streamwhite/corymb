@@ -1,6 +1,9 @@
 import type { SQL } from "bun";
 import { consumeAuthToken } from "@/auth/auth-tokens.js";
+import { findUserById } from "@/auth/user-queries.js";
 import { revokeAllSessionsForUser } from "@/auth/session.js";
+import type { Cache } from "@/cache/cache-types.js";
+import { invalidateUser } from "@/cache/invalidate.js";
 import { BCRYPT_COST, MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
 import { PASSWORD_RESETS_TABLE } from "@/constants/auth-tokens.js";
 import {
@@ -47,6 +50,7 @@ async function updatePasswordHash(
 export async function handleResetPassword(
   req: Request,
   sql: SQL,
+  cache: Cache,
 ): Promise<Response> {
   const parsed = await readJsonUnknown(req);
   if (!parsed.ok) {
@@ -72,6 +76,7 @@ export async function handleResetPassword(
     );
   }
   const consumed = await consumeAuthToken(
+    cache,
     sql,
     PASSWORD_RESETS_TABLE,
     payload.token,
@@ -88,7 +93,12 @@ export async function handleResetPassword(
     bcryptHashOptions(BCRYPT_COST),
   );
   await updatePasswordHash(sql, consumed.userId, newHash);
-  await revokeAllSessionsForUser(sql, consumed.userId);
+  const user = await findUserById(cache, sql, consumed.userId);
+  await invalidateUser(cache, {
+    id: consumed.userId,
+    email: user?.email,
+  });
+  await revokeAllSessionsForUser(cache, sql, consumed.userId);
   return jsonApiResponse(
     { ok: true },
     { status: HTTP_STATUS_OK },

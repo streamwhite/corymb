@@ -1,5 +1,8 @@
 import type { SQL } from "bun";
 import { consumeAuthToken } from "@/auth/auth-tokens.js";
+import { findUserById } from "@/auth/user-queries.js";
+import type { Cache } from "@/cache/cache-types.js";
+import { invalidateUser } from "@/cache/invalidate.js";
 import { EMAIL_VERIFICATIONS_TABLE } from "@/constants/auth-tokens.js";
 import {
   HTTP_STATUS_BAD_REQUEST,
@@ -21,6 +24,7 @@ async function markEmailVerified(sql: SQL, userId: string): Promise<void> {
 export async function handleVerifyEmail(
   req: Request,
   sql: SQL,
+  cache: Cache,
 ): Promise<Response> {
   const token = new URL(req.url).searchParams.get(MAIL_LINK_TOKEN_PARAM);
   if (token === null || token.length === 0) {
@@ -31,6 +35,7 @@ export async function handleVerifyEmail(
     );
   }
   const consumed = await consumeAuthToken(
+    cache,
     sql,
     EMAIL_VERIFICATIONS_TABLE,
     token,
@@ -42,7 +47,12 @@ export async function handleVerifyEmail(
       new URL(req.url),
     );
   }
+  const user = await findUserById(cache, sql, consumed.userId);
   await markEmailVerified(sql, consumed.userId);
+  await invalidateUser(cache, {
+    id: consumed.userId,
+    email: user?.email,
+  });
   return jsonApiResponse(
     { ok: true, message: MSG_EMAIL_VERIFIED },
     { status: HTTP_STATUS_OK },

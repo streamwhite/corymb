@@ -1,5 +1,6 @@
 import type { SQL } from "bun";
 import { consumeRefreshToken } from "@/auth/session.js";
+import type { Cache } from "@/cache/cache-types.js";
 import {
   RESPONSE_FIELD_ACCESS_TOKEN,
   RESPONSE_FIELD_REFRESH_TOKEN,
@@ -16,12 +17,13 @@ import { issueSessionTokens } from "@/server/auth/shared.js";
 export async function handleAuthRefresh(
   req: Request,
   sql: SQL,
+  cache: Cache,
 ): Promise<Response> {
   const body = await readRefreshTokenFromBody(req);
   if (!body.ok) {
     return body.response;
   }
-  const consumed = await consumeRefreshToken(sql, body.refreshToken);
+  const consumed = await consumeRefreshToken(cache, sql, body.refreshToken);
   if (!consumed.ok) {
     return jsonApiResponse(
       { error: MSG_REFRESH_TOKEN_INVALID },

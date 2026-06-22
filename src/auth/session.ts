@@ -1,9 +1,16 @@
 import type { SQL } from "bun";
+import type { Cache } from "@/cache/cache-types.js";
+import { invalidateSession } from "@/cache/invalidate.js";
+import { sessionByIdKey } from "@/cache/keys.js";
 import {
   AUTH_BEARER_HEADER_PREFIX,
   SESSION_MAX_AGE_SECONDS,
   SESSION_TOKEN_BYTE_LENGTH,
 } from "@/constants/auth.js";
+import {
+  resolveCacheSessionTtlSecondsFromEnv,
+  ttlSecondsUntilExpiry,
+} from "@/constants/redis.js";
 import {
   SESSION_ARGON2_OPTS,
   SESSION_COOKIE_PART_SEPARATOR,
@@ -86,7 +93,56 @@ export async function issueSession(sql: SQL, userId: string): Promise<string> {
   return `${sessionId}${SESSION_COOKIE_PART_SEPARATOR}${rawToken}`;
 }
 
+async function loadSessionRowFromDb(
+  sql: SQL,
+  sessionId: string,
+): Promise<SessionRow | undefined> {
+  const rows = await sql`
+    SELECT id, user_id AS userId, token_hash AS tokenHash,
+           expires_at AS expiresAt, created_at AS createdAt
+    FROM sessions
+    WHERE id = ${sessionId}
+  `;
+  return firstSessionRow(rows);
+}
+
+function isSessionExpired(row: SessionRow): boolean {
+  const expiresMs = Date.parse(row.expiresAt);
+  if (Number.isNaN(expiresMs)) {
+    return true;
+  }
+  return expiresMs <= Date.now();
+}
+
+async function loadSessionRow(
+  cache: Cache,
+  sql: SQL,
+  sessionId: string,
+): Promise<SessionRow | undefined> {
+  const capSeconds = resolveCacheSessionTtlSecondsFromEnv();
+  const key = sessionByIdKey(sessionId);
+  const cached = await cache.get(key);
+  if (cached !== null) {
+    try {
+      const row = JSON.parse(cached) as SessionRow;
+      if (!isSessionExpired(row)) {
+        return row;
+      }
+    } catch {
+      // ignore corrupt cache entry
+    }
+  }
+  const row = await loadSessionRowFromDb(sql, sessionId);
+  if (row === undefined || isSessionExpired(row)) {
+    return undefined;
+  }
+  const ttlSeconds = ttlSecondsUntilExpiry(row.expiresAt, capSeconds);
+  await cache.set(key, JSON.stringify(row), ttlSeconds);
+  return row;
+}
+
 async function loadValidatedSession(
+  cache: Cache,
   sql: SQL,
   compositeSessionToken: string | undefined,
 ): Promise<SessionRow | undefined> {
@@ -94,13 +150,7 @@ async function loadValidatedSession(
   if (parsed === null) {
     return undefined;
   }
-  const rows = await sql`
-    SELECT id, user_id AS userId, token_hash AS tokenHash,
-           expires_at AS expiresAt, created_at AS createdAt
-    FROM sessions
-    WHERE id = ${parsed.sessionId}
-  `;
-  const row = firstSessionRow(rows);
+  const row = await loadSessionRow(cache, sql, parsed.sessionId);
   if (row === undefined) {
     return undefined;
   }
@@ -111,14 +161,16 @@ async function loadValidatedSession(
 }
 
 export async function revokeSessionByRawToken(
+  cache: Cache,
   sql: SQL,
   compositeSessionToken: string | undefined,
 ): Promise<void> {
-  const row = await loadValidatedSession(sql, compositeSessionToken);
+  const row = await loadValidatedSession(cache, sql, compositeSessionToken);
   if (row === undefined) {
     return;
   }
   await sql`DELETE FROM sessions WHERE id = ${row.id}`;
+  await invalidateSession(cache, row.id);
 }
 
 export type ConsumeRefreshTokenResult =
@@ -127,18 +179,21 @@ export type ConsumeRefreshTokenResult =
 
 /** Verifies + deletes the refresh-token session (one-shot consume for rotation). */
 export async function consumeRefreshToken(
+  cache: Cache,
   sql: SQL,
   compositeSessionToken: string | undefined,
 ): Promise<ConsumeRefreshTokenResult> {
-  const row = await loadValidatedSession(sql, compositeSessionToken);
+  const row = await loadValidatedSession(cache, sql, compositeSessionToken);
   if (row === undefined) {
     return { ok: false };
   }
   await sql`DELETE FROM sessions WHERE id = ${row.id}`;
+  await invalidateSession(cache, row.id);
   return { ok: true, userId: row.userId };
 }
 
 export async function revokeAllSessionsForUser(
+  _cache: Cache,
   sql: SQL,
   userId: string,
 ): Promise<void> {

@@ -6,6 +6,7 @@
   "packageManager": "bun@1.3.10",
   "scripts": {
     "dev": "NODE_ENV=development bun --watch src/index.ts",
+    "dev:all": "NODE_ENV=development bun scripts/start-dev.ts",
     "start": "NODE_ENV=production bun dist/index.js",
     "tls:gencert": "bun scripts/gen-dev-tls.ts",
     "build": "bun scripts/rm-dist.mjs && bun build src/index.ts --outdir=dist --production --target=bun && bun scripts/copy-db-migrations.mjs",
@@ -16,11 +17,7 @@
     "db:migrate:prd": "bun src/db/migrate-cli.ts",
     "db:migrate:dev": "bun scripts/db-sync.ts",
     "db:seed": "bun src/db/run-seed.ts",
-    "standalone": "bun build --compile --minify --bytecode src/index.ts --outfile=myapp && bun scripts/copy-standalone-migrations.mjs",
-    "docker:build": "docker build --build-arg BUN_DOCKER_TAG=1.3.10 -t bunjs-hands-on:local .",
-    "docker:up": "docker compose up --build -d",
-    "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f app"
+    "standalone": "bun build --compile --minify --bytecode src/index.ts --outfile=myapp && bun scripts/copy-standalone-migrations.mjs"
   },
   "dependencies": {},
   "devDependencies": {
