@@ -1,12 +1,10 @@
 import { invalidateKeys } from "@/cache/cache-aside.js";
 import type { Cache } from "@/cache/cache-types.js";
 import {
-  authTokenKey,
   sessionByIdKey,
   userByEmailKey,
   userByIdKey,
 } from "@/cache/keys.js";
-import type { AuthTokenTableName } from "@/cache/keys.js";
 
 export type InvalidateUserInput = {
   id: string;
@@ -29,12 +27,4 @@ export async function invalidateSession(
   sessionId: string,
 ): Promise<void> {
   await cache.del(sessionByIdKey(sessionId));
-}
-
-export async function invalidateAuthToken(
-  cache: Cache,
-  table: AuthTokenTableName,
-  rowId: string,
-): Promise<void> {
-  await cache.del(authTokenKey(table, rowId));
 }

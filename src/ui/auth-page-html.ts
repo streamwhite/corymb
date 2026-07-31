@@ -1,23 +1,21 @@
 import {
-  AUTH_TOKEN_BROWSER_STORAGE_KEY,
-  REFRESH_TOKEN_BROWSER_STORAGE_KEY,
-  RESPONSE_FIELD_ACCESS_TOKEN,
-  RESPONSE_FIELD_REFRESH_TOKEN,
-} from "@/constants/auth.js";
-import {
-  AUTH_REFRESH_PATH,
-  AUTH_SIGNIN_PATH,
-  AUTH_SIGNOUT_PATH,
-  AUTH_SIGNUP_PATH,
-} from "@/constants/routes.js";
+  AUTH_SESSION_ROTATE_PATH,
+  BETTER_AUTH_BASE_PATH,
+} from "@/constants/better-auth.js";
 import { AUTH_PAGE_HEADING, AUTH_PAGE_TITLE } from "@/constants/ui.js";
+
+const SIGN_UP_PATH = `${BETTER_AUTH_BASE_PATH}/sign-up/email` as const;
+const SIGN_IN_PATH = `${BETTER_AUTH_BASE_PATH}/sign-in/email` as const;
+const SIGN_OUT_PATH = `${BETTER_AUTH_BASE_PATH}/sign-out` as const;
+const GET_SESSION_PATH = `${BETTER_AUTH_BASE_PATH}/get-session` as const;
 
 function authPathsJson(): string {
   return JSON.stringify({
-    signup: AUTH_SIGNUP_PATH,
-    signin: AUTH_SIGNIN_PATH,
-    signout: AUTH_SIGNOUT_PATH,
-    refresh: AUTH_REFRESH_PATH,
+    signup: SIGN_UP_PATH,
+    signin: SIGN_IN_PATH,
+    signout: SIGN_OUT_PATH,
+    rotate: AUTH_SESSION_ROTATE_PATH,
+    session: GET_SESSION_PATH,
   });
 }
 
@@ -51,6 +49,7 @@ section {
   padding: 1.25rem;
   margin-bottom: 1rem;
 }
+section[hidden] { display: none; }
 h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 0.75rem; }
 label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
 input {
@@ -81,37 +80,44 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 function clientScript(): string {
   const paths = authPathsJson();
-  const accessKey = JSON.stringify(AUTH_TOKEN_BROWSER_STORAGE_KEY);
-  const refreshKey = JSON.stringify(REFRESH_TOKEN_BROWSER_STORAGE_KEY);
-  const accessField = JSON.stringify(RESPONSE_FIELD_ACCESS_TOKEN);
-  const refreshField = JSON.stringify(RESPONSE_FIELD_REFRESH_TOKEN);
   return `<script type="module">
 const PATHS = ${paths};
-const ACCESS_KEY = ${accessKey};
-const REFRESH_KEY = ${refreshKey};
-const ACCESS_FIELD = ${accessField};
-const REFRESH_FIELD = ${refreshField};
 const msg = document.getElementById("msg");
+const sessionSection = document.getElementById("session-section");
 function show(text, isErr) {
   msg.textContent = text;
   msg.style.color = isErr ? "var(--err)" : "var(--ok)";
 }
-function persistTokens(data) {
-  const a = data[ACCESS_FIELD];
-  const r = data[REFRESH_FIELD];
-  if (typeof a === "string" && a.length > 0) sessionStorage.setItem(ACCESS_KEY, a);
-  if (typeof r === "string" && r.length > 0) sessionStorage.setItem(REFRESH_KEY, r);
+function setSignedIn(signedIn) {
+  if (signedIn) {
+    sessionSection.removeAttribute("hidden");
+  } else {
+    sessionSection.setAttribute("hidden", "");
+  }
 }
 async function postJson(url, body) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
+    credentials: "include",
     body: JSON.stringify(body),
   });
   let data = {};
   try { data = await res.json(); } catch (_) {}
-  return { ok: res.ok, data };
+  return { ok: res.ok, status: res.status, data };
+}
+async function refreshSessionUi() {
+  try {
+    const res = await fetch(PATHS.session, { credentials: "include" });
+    if (!res.ok) {
+      setSignedIn(false);
+      return;
+    }
+    const data = await res.json();
+    setSignedIn(data !== null && data.session !== undefined);
+  } catch (_) {
+    setSignedIn(false);
+  }
 }
 document.getElementById("signup-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -121,11 +127,12 @@ document.getElementById("signup-form").addEventListener("submit", async (e) => {
   const password = String(fd.get("password") ?? "");
   const { ok, data } = await postJson(PATHS.signup, {
     email,
-    username,
     password,
+    name: username,
+    username,
   });
-  if (ok) persistTokens(data);
-  show(ok ? "Signed up." : (data.error ?? "Request failed"), !ok);
+  if (ok) setSignedIn(true);
+  show(ok ? "Signed up (session cookie set)." : (data.message ?? data.error ?? "Request failed"), !ok);
 });
 document.getElementById("signin-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -133,18 +140,19 @@ document.getElementById("signin-form").addEventListener("submit", async (e) => {
   const email = String(fd.get("email") ?? "").trim();
   const password = String(fd.get("password") ?? "");
   const { ok, data } = await postJson(PATHS.signin, { email, password });
-  if (ok) persistTokens(data);
-  show(ok ? "Signed in." : (data.error ?? "Request failed"), !ok);
+  if (ok) setSignedIn(true);
+  show(ok ? "Signed in (session cookie set)." : (data.message ?? data.error ?? "Request failed"), !ok);
 });
 document.getElementById("signout-btn").addEventListener("click", async () => {
-  const refreshToken = sessionStorage.getItem(REFRESH_KEY) ?? "";
-  const { ok, data } = await postJson(PATHS.signout, { [REFRESH_FIELD]: refreshToken });
-  if (ok) {
-    sessionStorage.removeItem(ACCESS_KEY);
-    sessionStorage.removeItem(REFRESH_KEY);
-  }
-  show(ok ? "Signed out." : (data.error ?? "Request failed"), !ok);
+  const { ok, data } = await postJson(PATHS.signout, {});
+  if (ok) setSignedIn(false);
+  show(ok ? "Signed out." : (data.message ?? data.error ?? "Request failed"), !ok);
 });
+document.getElementById("rotate-btn").addEventListener("click", async () => {
+  const { ok, data } = await postJson(PATHS.rotate, {});
+  show(ok ? "Session rotated." : (data.message ?? data.error ?? "Request failed"), !ok);
+});
+void refreshSessionUi();
 </script>`;
 }
 
@@ -173,9 +181,10 @@ function bodyMarkup(): string {
     <button type="submit">Sign in</button>
   </form>
 </section>
-<section aria-labelledby="signout-h">
-  <h2 id="signout-h">Sign out</h2>
-  <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--muted);">Revokes the refresh token stored in this browser.</p>
+<section id="session-section" aria-labelledby="session-h" hidden>
+  <h2 id="session-h">Session</h2>
+  <p style="margin:0 0 0.75rem;font-size:0.85rem;color:var(--muted);">Auth uses a random opaque session token stored server-side (DB + Redis), not a JWT. HttpOnly cookies hold the token. Rotate replaces it; revoke invalidates immediately.</p>
+  <button type="button" class="secondary" id="rotate-btn">Rotate session</button>
   <button type="button" class="secondary" id="signout-btn">Sign out</button>
 </section>
 <div id="msg" role="status" aria-live="polite"></div>

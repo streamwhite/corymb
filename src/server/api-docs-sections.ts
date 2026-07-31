@@ -1,50 +1,50 @@
 import {
-  DOC_EXAMPLE_ACCESS_TOKEN_PLACEHOLDER,
   DOC_EXAMPLE_EMAIL,
-  DOC_EXAMPLE_LINK_TOKEN_PLACEHOLDER,
   DOC_EXAMPLE_PASSWORD,
-  DOC_EXAMPLE_REFRESH_TOKEN_PLACEHOLDER,
+  DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER,
   DOC_EXAMPLE_UPLOAD_CURL_PATH,
   DOC_EXAMPLE_USERNAME,
   DOCS_EP_AUTH_UI_TITLE,
   DOCS_EP_FORGOT_PASSWORD_TITLE,
   DOCS_EP_HEALTH_TITLE,
-  DOCS_EP_REFRESH_TITLE,
   DOCS_EP_RESET_PASSWORD_TITLE,
-  DOCS_EP_SEND_VERIFICATION_TITLE,
+  DOCS_EP_ROTATE_SESSION_TITLE,
+  DOCS_EP_LIST_SESSIONS_TITLE,
+  DOCS_EP_REVOKE_SESSION_TITLE,
   DOCS_EP_SIGNIN_TITLE,
   DOCS_EP_SIGNOUT_TITLE,
   DOCS_EP_SIGNUP_TITLE,
+  DOCS_EP_TOKEN_TITLE,
   DOCS_EP_UPLOAD_TITLE,
-  DOCS_EP_VERIFY_EMAIL_TITLE,
   DOCS_GROUP_AUTH,
   DOCS_GROUP_AUTH_UI,
   DOCS_GROUP_HEALTH,
   DOCS_GROUP_UPLOAD,
   docsExampleHttpBase,
 } from "@/constants/api-docs.js";
+import { AUTH_BEARER_HEADER_PREFIX, MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
 import {
-  AUTH_BEARER_HEADER_PREFIX,
-  MIN_PASSWORD_LENGTH,
-  RESPONSE_FIELD_REFRESH_TOKEN,
-} from "@/constants/auth.js";
+  AUTH_LIST_SESSIONS_PATH,
+  AUTH_REVOKE_SESSION_PATH,
+  AUTH_SESSION_ROTATE_PATH,
+  BETTER_AUTH_BASE_PATH,
+} from "@/constants/better-auth.js";
 import { HEADER_AUTHORIZATION } from "@/constants/http-security.js";
-import { MAIL_LINK_TOKEN_PARAM } from "@/constants/mail.js";
 import {
-  AUTH_FORGOT_PASSWORD_PATH,
-  AUTH_REFRESH_PATH,
-  AUTH_RESET_PASSWORD_PATH,
-  AUTH_SEND_VERIFICATION_PATH,
-  AUTH_SIGNIN_PATH,
-  AUTH_SIGNOUT_PATH,
-  AUTH_SIGNUP_PATH,
-  AUTH_VERIFY_EMAIL_PATH,
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
   UI_AUTH_BASE_PATH,
   UPLOAD_BASE_PATH,
 } from "@/constants/routes.js";
 import { UPLOAD_FORM_FIELD_NAME } from "@/constants/upload.js";
+
+const BA_SIGN_UP = `${BETTER_AUTH_BASE_PATH}/sign-up/email` as const;
+const BA_SIGN_IN = `${BETTER_AUTH_BASE_PATH}/sign-in/email` as const;
+const BA_SIGN_OUT = `${BETTER_AUTH_BASE_PATH}/sign-out` as const;
+const BA_REQUEST_RESET =
+  `${BETTER_AUTH_BASE_PATH}/request-password-reset` as const;
+const BA_RESET_PASSWORD = `${BETTER_AUTH_BASE_PATH}/reset-password` as const;
+const BA_TOKEN = `${BETTER_AUTH_BASE_PATH}/token` as const;
 
 export type ApiDocSection = {
   title: string;
@@ -65,57 +65,76 @@ function curlUi(base: string): string {
   return `curl -sS "${base}${UI_AUTH_BASE_PATH}"`;
 }
 
-function curlPostJson(url: string, body: Record<string, unknown>): string {
-  return `curl -sS -X POST "${url}" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body)}'`;
+function curlPostJson(
+  url: string,
+  body: Record<string, unknown>,
+  extraHeaders?: string[],
+): string {
+  const headerLines = [
+    `-H "Content-Type: application/json"`,
+    ...(extraHeaders ?? []),
+  ]
+    .map((h) => `  ${h}`)
+    .join(" \\\n");
+  return `curl -sS -X POST "${url}" \\\n${headerLines} \\\n  -d '${JSON.stringify(body)}'`;
 }
 
 function curlSignup(base: string): string {
-  return curlPostJson(`${base}${AUTH_SIGNUP_PATH}`, {
+  return curlPostJson(`${base}${BA_SIGN_UP}`, {
     email: DOC_EXAMPLE_EMAIL,
-    username: DOC_EXAMPLE_USERNAME,
     password: DOC_EXAMPLE_PASSWORD,
+    name: DOC_EXAMPLE_USERNAME,
+    username: DOC_EXAMPLE_USERNAME,
   });
 }
 
 function curlSignin(base: string): string {
-  return curlPostJson(`${base}${AUTH_SIGNIN_PATH}`, {
+  return `curl -sS -X POST "${base}${BA_SIGN_IN}" \\\n  -H "Content-Type: application/json" \\\n  -c cookies.txt \\\n  -d '${JSON.stringify({
     email: DOC_EXAMPLE_EMAIL,
     password: DOC_EXAMPLE_PASSWORD,
-  });
+  })}'`;
 }
 
 function curlSignout(base: string): string {
-  return curlPostJson(`${base}${AUTH_SIGNOUT_PATH}`, {
-    [RESPONSE_FIELD_REFRESH_TOKEN]: DOC_EXAMPLE_REFRESH_TOKEN_PLACEHOLDER,
-  });
+  return `curl -sS -X POST "${base}${BA_SIGN_OUT}" \\\n  -b cookies.txt`;
 }
 
-function curlRefresh(base: string): string {
-  return curlPostJson(`${base}${AUTH_REFRESH_PATH}`, {
-    [RESPONSE_FIELD_REFRESH_TOKEN]: DOC_EXAMPLE_REFRESH_TOKEN_PLACEHOLDER,
-  });
+function curlRotate(base: string): string {
+  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
+  return `curl -sS -X POST "${base}${AUTH_SESSION_ROTATE_PATH}" \\\n  -H "${HEADER_AUTHORIZATION}: ${authValue}"`;
+}
+
+function curlListSessions(base: string): string {
+  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
+  return `curl -sS "${base}${AUTH_LIST_SESSIONS_PATH}" \\\n  -H "${HEADER_AUTHORIZATION}: ${authValue}"`;
+}
+
+function curlRevokeSession(base: string): string {
+  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
+  return curlPostJson(
+    `${base}${AUTH_REVOKE_SESSION_PATH}`,
+    { token: DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER },
+    [`-H "${HEADER_AUTHORIZATION}: ${authValue}"`],
+  );
+}
+
+function curlToken(base: string): string {
+  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
+  return `curl -sS "${base}${BA_TOKEN}" \\\n  -H "${HEADER_AUTHORIZATION}: ${authValue}"`;
 }
 
 function curlForgotPassword(base: string): string {
-  return curlPostJson(`${base}${AUTH_FORGOT_PASSWORD_PATH}`, {
+  return curlPostJson(`${base}${BA_REQUEST_RESET}`, {
     email: DOC_EXAMPLE_EMAIL,
+    redirectTo: `${base}/ui`,
   });
 }
 
 function curlResetPassword(base: string): string {
-  return curlPostJson(`${base}${AUTH_RESET_PASSWORD_PATH}`, {
-    token: DOC_EXAMPLE_LINK_TOKEN_PLACEHOLDER,
-    password: DOC_EXAMPLE_PASSWORD,
+  return curlPostJson(`${base}${BA_RESET_PASSWORD}`, {
+    newPassword: DOC_EXAMPLE_PASSWORD,
+    token: "<token-from-email-link>",
   });
-}
-
-function curlSendVerification(base: string): string {
-  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_ACCESS_TOKEN_PLACEHOLDER}`;
-  return `curl -sS -X POST "${base}${AUTH_SEND_VERIFICATION_PATH}" \\\n  -H "${HEADER_AUTHORIZATION}: ${authValue}"`;
-}
-
-function curlVerifyEmail(base: string): string {
-  return `curl -sS "${base}${AUTH_VERIFY_EMAIL_PATH}?${MAIL_LINK_TOKEN_PARAM}=${DOC_EXAMPLE_LINK_TOKEN_PLACEHOLDER}"`;
 }
 
 function curlUpload(base: string): string {
@@ -167,43 +186,48 @@ function authGroup(base: string): ApiDocGroup {
     items: [
       {
         title: DOCS_EP_SIGNUP_TITLE,
-        subtitle: `POST ${AUTH_SIGNUP_PATH}`,
+        subtitle: `POST ${BA_SIGN_UP}`,
         curl: curlSignup(base),
       },
       {
         title: DOCS_EP_SIGNIN_TITLE,
-        subtitle: `POST ${AUTH_SIGNIN_PATH}`,
+        subtitle: `POST ${BA_SIGN_IN}`,
         curl: curlSignin(base),
       },
       {
-        title: DOCS_EP_REFRESH_TITLE,
-        subtitle: `POST ${AUTH_REFRESH_PATH}`,
-        curl: curlRefresh(base),
+        title: DOCS_EP_ROTATE_SESSION_TITLE,
+        subtitle: `POST ${AUTH_SESSION_ROTATE_PATH}`,
+        curl: curlRotate(base),
+      },
+      {
+        title: DOCS_EP_LIST_SESSIONS_TITLE,
+        subtitle: `GET ${AUTH_LIST_SESSIONS_PATH}`,
+        curl: curlListSessions(base),
+      },
+      {
+        title: DOCS_EP_REVOKE_SESSION_TITLE,
+        subtitle: `POST ${AUTH_REVOKE_SESSION_PATH}`,
+        curl: curlRevokeSession(base),
+      },
+      {
+        title: DOCS_EP_TOKEN_TITLE,
+        subtitle: `GET ${BA_TOKEN}`,
+        curl: curlToken(base),
       },
       {
         title: DOCS_EP_SIGNOUT_TITLE,
-        subtitle: `POST ${AUTH_SIGNOUT_PATH}`,
+        subtitle: `POST ${BA_SIGN_OUT}`,
         curl: curlSignout(base),
       },
       {
         title: DOCS_EP_FORGOT_PASSWORD_TITLE,
-        subtitle: `POST ${AUTH_FORGOT_PASSWORD_PATH}`,
+        subtitle: `POST ${BA_REQUEST_RESET}`,
         curl: curlForgotPassword(base),
       },
       {
         title: DOCS_EP_RESET_PASSWORD_TITLE,
-        subtitle: `POST ${AUTH_RESET_PASSWORD_PATH}`,
+        subtitle: `POST ${BA_RESET_PASSWORD}`,
         curl: curlResetPassword(base),
-      },
-      {
-        title: DOCS_EP_SEND_VERIFICATION_TITLE,
-        subtitle: `POST ${AUTH_SEND_VERIFICATION_PATH}`,
-        curl: curlSendVerification(base),
-      },
-      {
-        title: DOCS_EP_VERIFY_EMAIL_TITLE,
-        subtitle: `GET ${AUTH_VERIFY_EMAIL_PATH}`,
-        curl: curlVerifyEmail(base),
       },
     ],
   };

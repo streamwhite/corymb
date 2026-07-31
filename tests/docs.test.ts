@@ -12,8 +12,9 @@ import {
 } from "@/constants/docs-access.js";
 import { MSG_HTTP_NOT_FOUND } from "@/constants/messages.js";
 import {
-  AUTH_SIGNIN_PATH,
-  AUTH_SIGNUP_PATH,
+  BETTER_AUTH_BASE_PATH,
+} from "@/constants/better-auth.js";
+import {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
   UPLOAD_BASE_PATH,
@@ -38,8 +39,7 @@ describe("docs", () => {
     expect(body).toContain(`class="${DOCS_GROUP_HEADING_CLASS}"`);
     expect(body).toContain("curl");
     expect(body).toContain(HEALTH_BASE_PATH);
-    expect(body).toContain(AUTH_SIGNUP_PATH);
-    expect(body).toContain(AUTH_SIGNIN_PATH);
+    expect(body).toContain(BETTER_AUTH_BASE_PATH);
     expect(body).toContain(UPLOAD_BASE_PATH);
   });
 

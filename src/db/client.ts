@@ -9,6 +9,7 @@ import { resolveSqlitePathFromEnv } from "@/db/resolve-sqlite-path.js";
 
 export type DbBundle = {
   sql: SQL;
+  databasePath: string;
 };
 
 export type DbOptions = {
@@ -41,7 +42,7 @@ export async function createDbBundle(options?: DbOptions): Promise<DbBundle> {
   const sql = new SQL(url);
   await configureSqlitePragmas(sql);
   await applyMigrations(sql, resolveMigrationsFolder());
-  return { sql };
+  return { sql, databasePath: dbPath };
 }
 
 export async function closeDbBundle(bundle: DbBundle): Promise<void> {

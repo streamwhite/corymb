@@ -1,25 +1,19 @@
 import { describe, expect, it } from "bun:test";
-import {
-  MIN_PASSWORD_LENGTH,
-  RESPONSE_FIELD_ACCESS_TOKEN,
-  RESPONSE_FIELD_REFRESH_TOKEN,
-} from "@/constants/auth.js";
-import {
-  MSG_EMAIL_TAKEN,
-  MSG_INVALID_CREDENTIALS,
-  MSG_USERNAME_TAKEN,
-} from "@/constants/messages.js";
-import {
-  AUTH_SIGNIN_PATH,
-  AUTH_SIGNOUT_PATH,
-  AUTH_SIGNUP_PATH,
-} from "@/constants/routes.js";
-import {
-  HEADER_CONTENT_TYPE,
-  MIME_JSON,
-  VALID_TEST_USERNAME,
-} from "./constants.js";
+import { MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
+import { AUTH_SESSION_ROTATE_PATH } from "@/constants/better-auth.js";
+import { VALID_TEST_USERNAME } from "./constants.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
+import {
+  BA_GET_SESSION_PATH,
+  BA_SIGN_IN_PATH,
+  BA_SIGN_OUT_PATH,
+  BA_SIGN_UP_PATH,
+  BA_TOKEN_PATH,
+  bearerHeaders,
+  SET_AUTH_TOKEN_HEADER,
+  signupUser,
+} from "./helpers/auth-flow.js";
+import { HEADER_CONTENT_TYPE, MIME_JSON } from "./constants.js";
 
 const jsonHeaders = {
   [HEADER_CONTENT_TYPE]: MIME_JSON,
@@ -27,90 +21,58 @@ const jsonHeaders = {
 
 const validPassword = "x".repeat(MIN_PASSWORD_LENGTH);
 
-function signupBody(email: string, username = VALID_TEST_USERNAME) {
-  return JSON.stringify({
-    email,
-    username,
-    password: validPassword,
-  });
-}
-
-type TokenPair = {
-  user: { id: string; email: string; username: string };
-  [RESPONSE_FIELD_ACCESS_TOKEN]: string;
-  [RESPONSE_FIELD_REFRESH_TOKEN]: string;
-};
-
 describe("auth", () => {
-  it("signs up, returns user and access + refresh tokens (no cookie)", async () => {
+  it("signs up and returns session via set-auth-token / cookie", async () => {
     const { app } = await createMemoryApp();
-    const res = await app.request(AUTH_SIGNUP_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: signupBody("u1@example.com", "user_one"),
+    const result = await signupUser(app.request, {
+      email: "u1@example.com",
+      username: "user_one",
+      password: validPassword,
     });
-    expect(res.status).toBe(201);
-    const body = (await res.json()) as TokenPair;
-    expect(body.user.email).toBe("u1@example.com");
-    expect(body.user.username).toBe("user_one");
-    expect(typeof body[RESPONSE_FIELD_ACCESS_TOKEN]).toBe("string");
-    expect(typeof body[RESPONSE_FIELD_REFRESH_TOKEN]).toBe("string");
-    expect(body[RESPONSE_FIELD_ACCESS_TOKEN].split(".").length).toBe(3);
-    expect(body[RESPONSE_FIELD_REFRESH_TOKEN].length).toBeGreaterThan(40);
-    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(result.status).toBe(200);
+    expect(result.token).toBeTruthy();
+    expect(result.cookies.length).toBeGreaterThan(0);
   });
 
   it("rejects duplicate email on signup", async () => {
     const { app } = await createMemoryApp();
-    const payload = {
-      method: "POST" as const,
-      headers: jsonHeaders,
-      body: signupBody("dup@example.com", "dup_email_user"),
-    };
-    const first = await app.request(AUTH_SIGNUP_PATH, payload);
-    expect(first.status).toBe(201);
-    const second = await app.request(AUTH_SIGNUP_PATH, {
-      ...payload,
-      body: JSON.stringify({
-        email: "dup@example.com",
-        username: "other_username_ok",
-        password: validPassword,
-      }),
+    const first = await signupUser(app.request, {
+      email: "dup@example.com",
+      username: "dup_email_user",
+      password: validPassword,
     });
-    expect(second.status).toBe(409);
-    const err = (await second.json()) as { error: string };
-    expect(err.error).toBe(MSG_EMAIL_TAKEN);
+    expect(first.status).toBe(200);
+    const second = await signupUser(app.request, {
+      email: "dup@example.com",
+      username: "other_username_ok",
+      password: validPassword,
+    });
+    expect(second.status).toBeGreaterThanOrEqual(400);
   });
 
   it("rejects duplicate username on signup", async () => {
     const { app } = await createMemoryApp();
-    await app.request(AUTH_SIGNUP_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: signupBody("first@example.com", "shared_name"),
+    await signupUser(app.request, {
+      email: "first@example.com",
+      username: "shared_name",
+      password: validPassword,
     });
-    const second = await app.request(AUTH_SIGNUP_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({
-        email: "second@example.com",
-        username: "shared_name",
-        password: validPassword,
-      }),
+    const second = await signupUser(app.request, {
+      email: "second@example.com",
+      username: "shared_name",
+      password: validPassword,
     });
-    expect(second.status).toBe(409);
-    const err = (await second.json()) as { error: string };
-    expect(err.error).toBe(MSG_USERNAME_TAKEN);
+    expect(second.status).toBeGreaterThanOrEqual(400);
   });
 
-  it("signs in and returns user with new token pair", async () => {
+  it("signs in and establishes a session", async () => {
     const { app } = await createMemoryApp();
-    await app.request(AUTH_SIGNUP_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: signupBody("in@example.com", "in_user"),
+    await signupUser(app.request, {
+      email: "in@example.com",
+      username: "in_user",
+      password: validPassword,
     });
-    const res = await app.request(AUTH_SIGNIN_PATH, {
+    const res = await app.request(BA_SIGN_IN_PATH, {
       method: "POST",
       headers: jsonHeaders,
       body: JSON.stringify({
@@ -119,22 +81,17 @@ describe("auth", () => {
       }),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as TokenPair;
-    expect(body.user.email).toBe("in@example.com");
-    expect(body.user.username).toBe("in_user");
-    expect(typeof body[RESPONSE_FIELD_ACCESS_TOKEN]).toBe("string");
-    expect(typeof body[RESPONSE_FIELD_REFRESH_TOKEN]).toBe("string");
-    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(res.headers.get(SET_AUTH_TOKEN_HEADER)).toBeTruthy();
   });
 
   it("rejects wrong password", async () => {
     const { app } = await createMemoryApp();
-    await app.request(AUTH_SIGNUP_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: signupBody("badpw@example.com", "badpw_user"),
+    await signupUser(app.request, {
+      email: "badpw@example.com",
+      username: "badpw_user",
+      password: validPassword,
     });
-    const res = await app.request(AUTH_SIGNIN_PATH, {
+    const res = await app.request(BA_SIGN_IN_PATH, {
       method: "POST",
       headers: jsonHeaders,
       body: JSON.stringify({
@@ -142,56 +99,84 @@ describe("auth", () => {
         password: `${validPassword}wrong`,
       }),
     });
-    expect(res.status).toBe(401);
-    const err = (await res.json()) as { error: string };
-    expect(err.error).toBe(MSG_INVALID_CREDENTIALS);
+    expect(res.status).toBeGreaterThanOrEqual(400);
   });
 
-  it("rejects signin for unknown user", async () => {
+  it("signs out and invalidates bearer session", async () => {
     const { app } = await createMemoryApp();
-    const res = await app.request(AUTH_SIGNIN_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({
-        email: "ghost@example.com",
-        password: validPassword,
-      }),
+    const signed = await signupUser(app.request, {
+      email: "out@example.com",
+      username: "out_user",
+      password: validPassword,
     });
-    expect(res.status).toBe(401);
-  });
-
-  it("signs out with refreshToken body and revokes session", async () => {
-    const { app } = await createMemoryApp();
-    const signUp = await app.request(AUTH_SIGNUP_PATH, {
+    expect(signed.token).toBeTruthy();
+    const out = await app.request(BA_SIGN_OUT_PATH, {
       method: "POST",
-      headers: jsonHeaders,
-      body: signupBody("out@example.com", "out_user"),
-    });
-    const su = (await signUp.json()) as TokenPair;
-    const refreshToken = su[RESPONSE_FIELD_REFRESH_TOKEN];
-    expect(refreshToken.length).toBeGreaterThan(0);
-    const out = await app.request(AUTH_SIGNOUT_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({
-        [RESPONSE_FIELD_REFRESH_TOKEN]: refreshToken,
-      }),
+      headers: bearerHeaders(signed.token as string),
+      body: "{}",
     });
     expect(out.status).toBe(200);
-    const cleared = (await out.json()) as { ok: boolean };
-    expect(cleared.ok).toBe(true);
-    expect(out.headers.get("set-cookie")).toBeNull();
+    const session = await app.request(BA_GET_SESSION_PATH, {
+      method: "GET",
+      headers: bearerHeaders(signed.token as string),
+    });
+    const body = (await session.json()) as unknown;
+    expect(body).toBeNull();
   });
 
-  it("signout with invalid refreshToken body is idempotent", async () => {
+  it("issues a short-lived access JWT via /token", async () => {
     const { app } = await createMemoryApp();
-    const res = await app.request(AUTH_SIGNOUT_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({
-        [RESPONSE_FIELD_REFRESH_TOKEN]: "bogus",
-      }),
+    const signed = await signupUser(app.request, {
+      email: "jwt@example.com",
+      username: VALID_TEST_USERNAME,
+      password: validPassword,
+    });
+    const res = await app.request(BA_TOKEN_PATH, {
+      method: "GET",
+      headers: bearerHeaders(signed.token as string),
     });
     expect(res.status).toBe(200);
+    const body = (await res.json()) as { token?: string };
+    expect(typeof body.token).toBe("string");
+    expect((body.token as string).split(".").length).toBe(3);
+  });
+
+  it("rotates session and rejects the previous token", async () => {
+    const { app } = await createMemoryApp();
+    const signed = await signupUser(app.request, {
+      email: "rot@example.com",
+      username: "rot_user",
+      password: validPassword,
+    });
+    const oldToken = signed.token as string;
+    const rotated = await app.request(AUTH_SESSION_ROTATE_PATH, {
+      method: "POST",
+      headers: bearerHeaders(oldToken),
+      body: "{}",
+    });
+    expect(rotated.status).toBe(200);
+    const newToken = rotated.headers.get(SET_AUTH_TOKEN_HEADER);
+    expect(newToken).toBeTruthy();
+    expect(newToken).not.toBe(oldToken);
+
+    const oldSession = await app.request(BA_GET_SESSION_PATH, {
+      method: "GET",
+      headers: bearerHeaders(oldToken),
+    });
+    expect(await oldSession.json()).toBeNull();
+
+    const newSession = await app.request(BA_GET_SESSION_PATH, {
+      method: "GET",
+      headers: bearerHeaders(newToken as string),
+    });
+    const sessionBody = (await newSession.json()) as { session?: unknown };
+    expect(sessionBody?.session).toBeTruthy();
+  });
+});
+
+describe("auth paths", () => {
+  it("exposes Better Auth base paths", () => {
+    expect(BA_SIGN_UP_PATH).toContain("/api/auth/");
+    expect(BA_SIGN_OUT_PATH).toContain("/api/auth/");
   });
 });

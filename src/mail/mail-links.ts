@@ -3,10 +3,10 @@ import {
   ENV_APP_PUBLIC_BASE_URL,
   MAIL_LINK_TOKEN_PARAM,
 } from "@/constants/mail.js";
-import {
-  AUTH_RESET_PASSWORD_PATH,
-  AUTH_VERIFY_EMAIL_PATH,
-} from "@/constants/routes.js";
+import { BETTER_AUTH_BASE_PATH } from "@/constants/better-auth.js";
+
+const RESET_PASSWORD_PATH = `${BETTER_AUTH_BASE_PATH}/reset-password` as const;
+const VERIFY_EMAIL_PATH = `${BETTER_AUTH_BASE_PATH}/verify-email` as const;
 
 function publicBaseUrl(): string {
   const raw = process.env[ENV_APP_PUBLIC_BASE_URL];
@@ -23,9 +23,9 @@ function buildLink(path: string, token: string): string {
 }
 
 export function buildPasswordResetLink(token: string): string {
-  return buildLink(AUTH_RESET_PASSWORD_PATH, token);
+  return buildLink(RESET_PASSWORD_PATH, token);
 }
 
 export function buildEmailVerifyLink(token: string): string {
-  return buildLink(AUTH_VERIFY_EMAIL_PATH, token);
+  return buildLink(VERIFY_EMAIL_PATH, token);
 }

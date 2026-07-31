@@ -1,16 +1,16 @@
-import { closeDbBundle, createDbBundle } from "@/db/client.js";
+import { createSeedRuntime } from "@/db/seed-runtime.js";
 import { seedDatabase } from "@/db/seed.js";
 
 async function main(): Promise<void> {
-  const bundle = await createDbBundle();
+  const runtime = await createSeedRuntime();
   try {
-    await seedDatabase(bundle);
+    await seedDatabase(runtime.auth);
     console.info("Seed completed.");
   } catch (err) {
     console.error(err);
     process.exitCode = 1;
   } finally {
-    await closeDbBundle(bundle);
+    await runtime.close();
   }
 }
 

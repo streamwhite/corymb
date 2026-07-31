@@ -28,9 +28,9 @@ export const PERMISSIONS_POLICY_SENSITIVE_DISABLED =
 export const HEADER_CONTENT_SECURITY_POLICY =
   "Content-Security-Policy" as const;
 
-/** Inline styles + inline scripts (auth UI + docs copy helper); no remote assets. */
+/** Inline styles + scripts; same-origin fetch for auth UI; no remote assets. */
 export const CSP_STATIC_INLINE_UI =
-  "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; img-src 'self' data: blob:" as const;
+  "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; img-src 'self' data: blob:" as const;
 
 export const HEADER_STRICT_TRANSPORT_SECURITY =
   "Strict-Transport-Security" as const;

@@ -48,16 +48,17 @@ export const DOCS_EP_SIGNIN_TITLE = "Signin" as const;
 
 export const DOCS_EP_SIGNOUT_TITLE = "Signout" as const;
 
-export const DOCS_EP_REFRESH_TITLE = "Refresh token" as const;
+export const DOCS_EP_ROTATE_SESSION_TITLE = "Rotate session" as const;
+
+export const DOCS_EP_LIST_SESSIONS_TITLE = "List sessions" as const;
+
+export const DOCS_EP_REVOKE_SESSION_TITLE = "Revoke session" as const;
+
+export const DOCS_EP_TOKEN_TITLE = "Access JWT (optional)" as const;
 
 export const DOCS_EP_FORGOT_PASSWORD_TITLE = "Forgot password" as const;
 
 export const DOCS_EP_RESET_PASSWORD_TITLE = "Reset password" as const;
-
-export const DOCS_EP_SEND_VERIFICATION_TITLE =
-  "Send verification email" as const;
-
-export const DOCS_EP_VERIFY_EMAIL_TITLE = "Verify email" as const;
 
 export const DOCS_EP_UPLOAD_TITLE = "Upload file" as const;
 
@@ -73,13 +74,9 @@ export const DOC_EXAMPLE_USERNAME = "demo_user" as const;
 
 export const DOC_EXAMPLE_PASSWORD = "your-secure-pass" as const;
 
-/** Curl placeholder for the short-lived access JWT returned by signup/signin/refresh. */
-export const DOC_EXAMPLE_ACCESS_TOKEN_PLACEHOLDER =
-  "<paste-accessToken-from-signup-or-signin>" as const;
-
-/** Curl placeholder for the long-lived refresh token returned by signup/signin/refresh. */
-export const DOC_EXAMPLE_REFRESH_TOKEN_PLACEHOLDER =
-  "<paste-refreshToken-from-signup-or-signin>" as const;
+/** Curl placeholder for the Better Auth session token (cookie or Bearer). */
+export const DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER =
+  "<paste-session-token-from-set-auth-token>" as const;
 
 /** Curl placeholder for single-use email-link tokens. */
 export const DOC_EXAMPLE_LINK_TOKEN_PLACEHOLDER =

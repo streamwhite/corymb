@@ -22,7 +22,9 @@ import {
   RATE_LIMIT_STRATEGY_STRICT,
 } from "@/constants/rate-limit.js";
 import {
-  AUTH_SIGNIN_PATH,
+  BA_SIGN_IN_PATH,
+} from "./helpers/auth-flow.js";
+import {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
 } from "@/constants/routes.js";
@@ -43,7 +45,16 @@ describe("http security", () => {
       docsAccess: DOCS_ACCESS_MODE_DEVELOPMENT,
     });
     const res = await app.request(DOCS_BASE_PATH);
-    expect(res.headers.get(HEADER_CONTENT_SECURITY_POLICY)).toBeTruthy();
+    const csp = res.headers.get(HEADER_CONTENT_SECURITY_POLICY) ?? "";
+    expect(csp).toContain("connect-src 'self'");
+  });
+
+  it("allows same-origin fetch from auth UI CSP", async () => {
+    const { app } = await createMemoryApp();
+    const res = await app.request("/ui");
+    const csp = res.headers.get(HEADER_CONTENT_SECURITY_POLICY) ?? "";
+    expect(csp).toContain("connect-src 'self'");
+    expect(csp).toContain("script-src 'unsafe-inline'");
   });
 
   it("adds security headers on JSON docs 404", async () => {
@@ -58,7 +69,7 @@ describe("http security", () => {
   it("returns 413 when JSON body exceeds byte cap", async () => {
     const { app } = await createMemoryApp();
     const filler = "a".repeat(MAX_JSON_BODY_BYTES + 2);
-    const res = await app.request(AUTH_SIGNIN_PATH, {
+    const res = await app.request(BA_SIGN_IN_PATH, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -84,9 +95,9 @@ describe("http security", () => {
         },
         body: JSON.stringify({ not: "signin" }),
       };
-      const r1 = await app.request(AUTH_SIGNIN_PATH, init);
-      const r2 = await app.request(AUTH_SIGNIN_PATH, init);
-      const r3 = await app.request(AUTH_SIGNIN_PATH, init);
+      const r1 = await app.request(BA_SIGN_IN_PATH, init);
+      const r2 = await app.request(BA_SIGN_IN_PATH, init);
+      const r3 = await app.request(BA_SIGN_IN_PATH, init);
       expect(r1.status).not.toBe(429);
       expect(r2.status).not.toBe(429);
       expect(r3.status).toBe(429);
@@ -105,12 +116,12 @@ describe("http security", () => {
       const { app } = await createMemoryApp();
       const clientIp = "203.0.113.66";
       const headers = { "X-Forwarded-For": clientIp };
-      const strictA = await app.request(AUTH_SIGNIN_PATH, {
+      const strictA = await app.request(BA_SIGN_IN_PATH, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const strictB = await app.request(AUTH_SIGNIN_PATH, {
+      const strictB = await app.request(BA_SIGN_IN_PATH, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({}),

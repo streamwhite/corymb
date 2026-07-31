@@ -15,5 +15,10 @@ describe("auth ui", () => {
     expect(html).toContain("signup-form");
     expect(html).toContain("su-username");
     expect(html).toContain("signin-form");
+    expect(html).toContain('id="session-section"');
+    expect(html).toContain("session-section");
+    expect(html).toMatch(/id="session-section"[^>]*\bhidden\b/);
+    expect(html).toContain("signout-btn");
+    expect(html).toContain("get-session");
   });
 });

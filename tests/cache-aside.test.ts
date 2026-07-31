@@ -5,23 +5,12 @@ import { createNoopCache } from "@/cache/noop-cache.js";
 import { createRedisCache } from "@/cache/redis-cache.js";
 import { RedisClient } from "bun";
 import { ENV_REDIS_URL } from "@/constants/redis.js";
-import {
-  AUTH_SIGNIN_PATH,
-  AUTH_SIGNUP_PATH,
-} from "@/constants/routes.js";
-import {
-  HEADER_CONTENT_TYPE,
-  MIME_JSON,
-  VALID_TEST_USERNAME,
-} from "./constants.js";
-import { createMemoryApp } from "./helpers/app-memory.js";
 import { MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
+import { createMemoryApp } from "./helpers/app-memory.js";
+import { signupUser } from "./helpers/auth-flow.js";
+import { VALID_TEST_USERNAME } from "./constants.js";
 
 type SampleRow = { id: string; name: string };
-
-const jsonHeaders = {
-  [HEADER_CONTENT_TYPE]: MIME_JSON,
-} as Record<string, string>;
 
 const validPassword = "x".repeat(MIN_PASSWORD_LENGTH);
 
@@ -97,68 +86,65 @@ describe("cache-aside", () => {
 });
 
 describe("auth cache-aside", () => {
-  it("sign-in populates user cache for repeat lookups", async () => {
+  it("sign-up stores session data in secondary storage cache", async () => {
     const memory = createMemoryCache();
     const { app } = await createMemoryApp({ cache: memory });
-    const email = "cached-signin@example.com";
-    await app.request(AUTH_SIGNUP_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({
-        email,
-        username: VALID_TEST_USERNAME,
-        password: validPassword,
-      }),
+    const result = await signupUser(app.request, {
+      email: "cached-signin@example.com",
+      username: VALID_TEST_USERNAME,
+      password: validPassword,
     });
-    const signinBody = JSON.stringify({ email, password: validPassword });
-    const first = await app.request(AUTH_SIGNIN_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: signinBody,
-    });
-    expect(first.status).toBe(200);
+    expect(result.status).toBe(200);
     expect(memory.store.size).toBeGreaterThan(0);
-    const second = await app.request(AUTH_SIGNIN_PATH, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: signinBody,
-    });
-    expect(second.status).toBe(200);
   });
 });
 
 const redisUrl = process.env[ENV_REDIS_URL];
 
-describe.skipIf(redisUrl === undefined || redisUrl.length === 0)(
-  "cache-aside redis integration",
-  () => {
-    it("round-trips through Redis", async () => {
-      const client = new RedisClient(redisUrl as string);
-      const cache = createRedisCache(client);
-      const testKey = `test:cache-aside:${crypto.randomUUID()}`;
-      let calls = 0;
-      const loader = async (): Promise<SampleRow> => {
-        calls += 1;
-        return { id: "r", name: "redis" };
-      };
-      try {
-        await getOrLoad({
-          cache,
-          key: testKey,
-          ttlSeconds: 30,
-          loader,
-        });
-        await getOrLoad({
-          cache,
-          key: testKey,
-          ttlSeconds: 30,
-          loader,
-        });
-        expect(calls).toBe(1);
-      } finally {
-        await cache.del(testKey);
-        client.close();
-      }
-    });
-  },
-);
+async function redisAvailable(url: string): Promise<boolean> {
+  const client = new RedisClient(url, { connectionTimeout: 500 });
+  try {
+    const reply = await client.send("PING", []);
+    return reply === "PONG";
+  } catch {
+    return false;
+  } finally {
+    client.close();
+  }
+}
+
+const redisReady =
+  redisUrl !== undefined &&
+  redisUrl.length > 0 &&
+  (await redisAvailable(redisUrl));
+
+describe.skipIf(!redisReady)("cache-aside redis integration", () => {
+  it("round-trips through Redis", async () => {
+    const client = new RedisClient(redisUrl as string);
+    const cache = createRedisCache(client);
+    const testKey = `test:cache-aside:${crypto.randomUUID()}`;
+    let calls = 0;
+    const loader = async (): Promise<SampleRow> => {
+      calls += 1;
+      return { id: "r", name: "redis" };
+    };
+    try {
+      await getOrLoad({
+        cache,
+        key: testKey,
+        ttlSeconds: 30,
+        loader,
+      });
+      await getOrLoad({
+        cache,
+        key: testKey,
+        ttlSeconds: 30,
+        loader,
+      });
+      expect(calls).toBe(1);
+    } finally {
+      await cache.del(testKey);
+      client.close();
+    }
+  });
+});

@@ -1,5 +1,12 @@
 import type { Serve, SQL } from "bun";
 import {
+  createBetterAuth,
+  openAuthSqlite,
+  type BetterAuthInstance,
+} from "@/auth/better-auth.js";
+import type { Cache } from "@/cache/cache-types.js";
+import { closeCacheBundle, createCacheBundle } from "@/cache/client.js";
+import {
   DEFAULT_DOCS_ACCESS_MODE,
   type DocsAccessMode,
 } from "@/constants/docs-access.js";
@@ -8,8 +15,6 @@ import {
   HTTP_STATUS_NOT_FOUND,
 } from "@/constants/http-status.js";
 import { MSG_HTTP_NOT_FOUND, MSG_INTERNAL } from "@/constants/messages.js";
-import type { Cache } from "@/cache/cache-types.js";
-import { closeCacheBundle, createCacheBundle } from "@/cache/client.js";
 import { closeDbBundle, createDbBundle, type DbOptions } from "@/db/client.js";
 import {
   withSecurityHeaders,
@@ -30,6 +35,12 @@ export type CreateAppOptions = DbOptions & {
   cache?: Cache;
   /** Override Redis URL when creating the default cache bundle. */
   redisUrl?: string;
+  /** Override Better Auth secret (tests). */
+  authSecret?: string;
+  /** Override Better Auth base URL (tests). */
+  authBaseURL?: string;
+  /** Override trusted origins (tests). */
+  authTrustedOrigins?: string[];
 };
 
 export type AppInstance = {
@@ -38,6 +49,7 @@ export type AppInstance = {
   onServeError: (err: unknown) => Response | Promise<Response>;
   sql: SQL;
   cache: Cache;
+  auth: BetterAuthInstance;
   close: () => Promise<void>;
 };
 
@@ -67,19 +79,36 @@ export async function createApp(
       ? Promise.resolve({ cache: options.cache, close: () => {} })
       : createCacheBundle({ redisUrl: options?.redisUrl }),
   ]);
+  const authSqlite = openAuthSqlite(bundle.databasePath);
   const docsAccess = options?.docsAccess ?? DEFAULT_DOCS_ACCESS_MODE;
   const uploadDir = resolveUploadRoot({ uploadDir: options?.uploadDir });
   const mailer = options?.mailer ?? resolveMailerFromEnv();
+  const auth = createBetterAuth({
+    database: authSqlite.database,
+    cache: cacheBundle.cache,
+    mailer,
+    secret: options?.authSecret,
+    baseURL: options?.authBaseURL,
+    trustedOrigins: options?.authTrustedOrigins,
+  });
   return {
     routes: buildServeRoutes(
-      { sql: bundle.sql, uploadDir, mailer, cache: cacheBundle.cache },
+      {
+        sql: bundle.sql,
+        uploadDir,
+        mailer,
+        cache: cacheBundle.cache,
+        auth,
+      },
       { docsAccess },
     ),
     fetchNotFound,
     onServeError,
     sql: bundle.sql,
     cache: cacheBundle.cache,
+    auth,
     close: async () => {
+      authSqlite.close();
       await closeDbBundle(bundle);
       closeCacheBundle(cacheBundle);
     },
