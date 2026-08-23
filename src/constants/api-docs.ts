@@ -62,6 +62,14 @@ export const DOCS_EP_RESET_PASSWORD_TITLE = "Reset password" as const;
 
 export const DOCS_EP_UPLOAD_TITLE = "Upload file" as const;
 
+export const DOCS_EP_PASSKEY_SIGNIN_TITLE = "Sign in with passkey" as const;
+
+export const DOCS_EP_PASSKEY_ADD_TITLE = "Add passkey" as const;
+
+export const DOCS_EP_PASSKEY_LIST_TITLE = "List passkeys" as const;
+
+export const DOCS_EP_PASSKEY_DELETE_TITLE = "Delete passkey" as const;
+
 /** Placeholder path in curl `-F file=@…` (replace with a real local file). */
 export const DOC_EXAMPLE_UPLOAD_CURL_PATH = "path/to/local-file.txt" as const;
 

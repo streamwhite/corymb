@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { passkey } from "@better-auth/passkey";
 import { bearer } from "better-auth/plugins/bearer";
 import { jwt } from "better-auth/plugins/jwt";
 import { username } from "better-auth/plugins/username";
@@ -8,10 +9,12 @@ import { createSecondaryStorage } from "@/auth/secondary-storage.js";
 import { BCRYPT_COST } from "@/constants/auth.js";
 import {
   BETTER_AUTH_BASE_PATH,
+  PASSKEY_RP_NAME,
   resolveAccessJwtExpirationFromEnv,
   resolveBetterAuthSecretFromEnv,
   resolveBetterAuthUrlFromEnv,
   resolveCookieCacheMaxAgeSecondsFromEnv,
+  resolvePasskeyRpIdFromEnv,
   resolveSessionExpiresInSecondsFromEnv,
   resolveSessionUpdateAgeSecondsFromEnv,
   resolveTrustedOrigins,
@@ -116,6 +119,14 @@ export function createBetterAuth(
         },
       }),
       bearer(),
+      passkey({
+        rpID: resolvePasskeyRpIdFromEnv(baseURL),
+        rpName: PASSKEY_RP_NAME,
+        authenticatorSelection: {
+          userVerification: "required",
+          residentKey: "required",
+        },
+      }),
     ],
   });
 }

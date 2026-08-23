@@ -46,6 +46,28 @@ export const AUTH_REVOKE_OTHER_SESSIONS_PATH =
 
 export const MIN_BETTER_AUTH_SECRET_BYTES = 32 as const;
 
+/** Better Auth passkey plugin. */
+export const ENV_BETTER_AUTH_PASSKEY_RP_ID = "BETTER_AUTH_PASSKEY_RP_ID" as const;
+export const ENV_BETTER_AUTH_PASSKEY_ORIGIN =
+  "BETTER_AUTH_PASSKEY_ORIGIN" as const;
+
+export const PASSKEY_RP_NAME = "Backend Template" as const;
+
+export const AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH =
+  `${BETTER_AUTH_BASE_PATH}/passkey/generate-register-options` as const;
+export const AUTH_PASSKEY_VERIFY_REGISTRATION_PATH =
+  `${BETTER_AUTH_BASE_PATH}/passkey/verify-registration` as const;
+export const AUTH_PASSKEY_GENERATE_AUTHENTICATE_OPTIONS_PATH =
+  `${BETTER_AUTH_BASE_PATH}/passkey/generate-authenticate-options` as const;
+export const AUTH_PASSKEY_VERIFY_AUTHENTICATION_PATH =
+  `${BETTER_AUTH_BASE_PATH}/passkey/verify-authentication` as const;
+export const AUTH_PASSKEY_LIST_USER_PASSKEYS_PATH =
+  `${BETTER_AUTH_BASE_PATH}/passkey/list-user-passkeys` as const;
+export const AUTH_PASSKEY_DELETE_PASSKEY_PATH =
+  `${BETTER_AUTH_BASE_PATH}/passkey/delete-passkey` as const;
+export const AUTH_PASSKEY_UPDATE_PASSKEY_PATH =
+  `${BETTER_AUTH_BASE_PATH}/passkey/update-passkey` as const;
+
 const LOCAL_DEV_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"] as const;
 
 const LOCAL_DEV_SCHEMES = ["http", "https"] as const;
@@ -140,4 +162,30 @@ export function resolveBetterAuthSecretFromEnv(): string {
   throw new Error(
     `${ENV_BETTER_AUTH_SECRET} (or JWT_SECRET) must be at least ${String(MIN_BETTER_AUTH_SECRET_BYTES)} characters`,
   );
+}
+
+export function resolvePasskeyRpIdFromEnv(baseURL: string): string {
+  const fromEnv = process.env[ENV_BETTER_AUTH_PASSKEY_RP_ID];
+  if (fromEnv !== undefined && fromEnv.length > 0) {
+    return fromEnv;
+  }
+  try {
+    const hostname = new URL(baseURL).hostname;
+    // 0.0.0.0 is not a valid WebAuthn rpID — use localhost instead.
+    if (hostname === "0.0.0.0") {
+      return "localhost";
+    }
+    return hostname;
+  } catch {
+    return "localhost";
+  }
+}
+
+export function resolvePasskeyOriginFromEnv(baseURL: string): string {
+  const raw = process.env[ENV_BETTER_AUTH_PASSKEY_ORIGIN] ?? baseURL;
+  const s = raw.length > 0 ? raw : baseURL;
+  if (s.endsWith("/")) {
+    return s.slice(0, -1);
+  }
+  return s;
 }

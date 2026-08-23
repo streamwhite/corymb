@@ -20,7 +20,8 @@
     "standalone": "bun build --compile --minify --bytecode src/index.ts --outfile=myapp && bun scripts/copy-standalone-migrations.mjs"
   },
   "dependencies": {
-    "better-auth": "^1.6.25"
+    "@better-auth/passkey": "^1.7.1",
+    "better-auth": "^1.7.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",

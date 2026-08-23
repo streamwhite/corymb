@@ -16,6 +16,10 @@ import {
   DOCS_EP_SIGNUP_TITLE,
   DOCS_EP_TOKEN_TITLE,
   DOCS_EP_UPLOAD_TITLE,
+  DOCS_EP_PASSKEY_SIGNIN_TITLE,
+  DOCS_EP_PASSKEY_ADD_TITLE,
+  DOCS_EP_PASSKEY_LIST_TITLE,
+  DOCS_EP_PASSKEY_DELETE_TITLE,
   DOCS_GROUP_AUTH,
   DOCS_GROUP_AUTH_UI,
   DOCS_GROUP_HEALTH,
@@ -27,6 +31,12 @@ import {
   AUTH_LIST_SESSIONS_PATH,
   AUTH_REVOKE_SESSION_PATH,
   AUTH_SESSION_ROTATE_PATH,
+  AUTH_PASSKEY_GENERATE_AUTHENTICATE_OPTIONS_PATH,
+  AUTH_PASSKEY_VERIFY_AUTHENTICATION_PATH,
+  AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH,
+  AUTH_PASSKEY_VERIFY_REGISTRATION_PATH,
+  AUTH_PASSKEY_LIST_USER_PASSKEYS_PATH,
+  AUTH_PASSKEY_DELETE_PASSKEY_PATH,
   BETTER_AUTH_BASE_PATH,
 } from "@/constants/better-auth.js";
 import { HEADER_AUTHORIZATION } from "@/constants/http-security.js";
@@ -141,6 +151,35 @@ function curlUpload(base: string): string {
   return `curl -sS -X POST "${base}${UPLOAD_BASE_PATH}" \\\n  -F "${UPLOAD_FORM_FIELD_NAME}=@${DOC_EXAMPLE_UPLOAD_CURL_PATH}"`;
 }
 
+function curlPasskeySignin(base: string): string {
+  return `# Step 1: fetch options from the page
+curl -sS "${base}${AUTH_PASSKEY_GENERATE_AUTHENTICATE_OPTIONS_PATH}" -c cookies.txt
+# Step 2: verify (browser-only — requires WebAuthn API)
+curl -sS -X POST "${base}${AUTH_PASSKEY_VERIFY_AUTHENTICATION_PATH}" \\\n  -H "Content-Type: application/json" \\\n  -b cookies.txt \\\n  -d '{"response":{"id":"<credential-id>","rawId":"<raw-id>","type":"public-key","response":{"clientDataJSON":"…","authenticatorData":"…","signature":"…","userHandle":"…"},"clientExtensionResults":{}}}}'`;
+}
+
+function curlAddPasskey(base: string): string {
+  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
+  return `# Step 1: fetch registration options
+curl -sS "${base}${AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH}" \\\n  -H "${HEADER_AUTHORIZATION}: ${authValue}"
+# Step 2: verify registration (browser-only)
+curl -sS -X POST "${base}${AUTH_PASSKEY_VERIFY_REGISTRATION_PATH}" \\\n  -H "${HEADER_AUTHORIZATION}: ${authValue}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"response":{"id":"<credential-id>","rawId":"<raw-id>","type":"public-key","response":{"clientDataJSON":"…","attestationObject":"…","transports":["internal"]},"clientExtensionResults":{}}}}'`;
+}
+
+function curlListPasskeys(base: string): string {
+  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
+  return `curl -sS "${base}${AUTH_PASSKEY_LIST_USER_PASSKEYS_PATH}" \\\n  -H "${HEADER_AUTHORIZATION}: ${authValue}"`;
+}
+
+function curlDeletePasskey(base: string): string {
+  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
+  return curlPostJson(
+    `${base}${AUTH_PASSKEY_DELETE_PASSKEY_PATH}`,
+    { id: "<passkey-id>" },
+    [`-H "${HEADER_AUTHORIZATION}: ${authValue}"`],
+  );
+}
+
 export function getApiDocsMeta(): {
   baseUrl: string;
   minPasswordLength: number;
@@ -228,6 +267,26 @@ function authGroup(base: string): ApiDocGroup {
         title: DOCS_EP_RESET_PASSWORD_TITLE,
         subtitle: `POST ${BA_RESET_PASSWORD}`,
         curl: curlResetPassword(base),
+      },
+      {
+        title: DOCS_EP_PASSKEY_SIGNIN_TITLE,
+        subtitle: `POST ${AUTH_PASSKEY_VERIFY_AUTHENTICATION_PATH}`,
+        curl: curlPasskeySignin(base),
+      },
+      {
+        title: DOCS_EP_PASSKEY_ADD_TITLE,
+        subtitle: `POST ${AUTH_PASSKEY_VERIFY_REGISTRATION_PATH}`,
+        curl: curlAddPasskey(base),
+      },
+      {
+        title: DOCS_EP_PASSKEY_LIST_TITLE,
+        subtitle: `GET ${AUTH_PASSKEY_LIST_USER_PASSKEYS_PATH}`,
+        curl: curlListPasskeys(base),
+      },
+      {
+        title: DOCS_EP_PASSKEY_DELETE_TITLE,
+        subtitle: `POST ${AUTH_PASSKEY_DELETE_PASSKEY_PATH}`,
+        curl: curlDeletePasskey(base),
       },
     ],
   };

@@ -20,5 +20,14 @@ describe("auth ui", () => {
     expect(html).toMatch(/id="session-section"[^>]*\bhidden\b/);
     expect(html).toContain("signout-btn");
     expect(html).toContain("get-session");
+    expect(html).toContain('id="passkey-signin-btn"');
+    expect(html).toContain('id="add-passkey-btn"');
+    expect(html).toContain('id="passkey-list"');
+    expect(html).toContain("generate-authenticate-options");
+    expect(html).toContain("verify-authentication");
+    expect(html).toContain("list-user-passkeys");
+    expect(html).toContain("delete-passkey");
+    expect(html).toContain('id="passkey-section"');
+    expect(html).toMatch(/id="passkey-section"[^>]*\bhidden\b/);
   });
 });
