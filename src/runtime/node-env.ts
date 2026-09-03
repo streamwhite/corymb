@@ -1,6 +1,8 @@
-import { ENV_NODE_ENV, NODE_ENV_DEVELOPMENT } from "@/constants/tls-dev.js";
-
-const NODE_ENV_PRODUCTION = "production" as const;
+import {
+  ENV_NODE_ENV,
+  NODE_ENV_DEVELOPMENT,
+  NODE_ENV_PRODUCTION,
+} from "@/constants/tls-dev.js";
 
 export function isNodeEnvDevelopment(): boolean {
   return process.env[ENV_NODE_ENV] === NODE_ENV_DEVELOPMENT;

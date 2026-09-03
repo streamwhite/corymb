@@ -2,9 +2,9 @@ import { createApp } from "@/app.js";
 import {
   DEFAULT_HTTP_PORT,
   ENV_PORT_KEY,
-  HOST_FALLBACK,
   SIGNAL_SIGINT,
   SIGNAL_SIGTERM,
+  resolveListenHost,
 } from "@/constants/server.js";
 import { devTlsServeOptions, resolveDevTlsPaths } from "@/server/dev-tls.js";
 
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
     fetch: app.fetchNotFound,
     error: app.onServeError,
     port: resolveListenPort(),
-    hostname: HOST_FALLBACK,
+    hostname: resolveListenHost(),
     ...tlsOpts,
   });
 
