@@ -2,9 +2,9 @@ import { createApp } from "@/app.js";
 import {
   DEFAULT_HTTP_PORT,
   ENV_PORT_KEY,
+  resolveListenHost,
   SIGNAL_SIGINT,
   SIGNAL_SIGTERM,
-  resolveListenHost,
 } from "@/constants/server.js";
 import { devTlsServeOptions, resolveDevTlsPaths } from "@/server/dev-tls.js";
 

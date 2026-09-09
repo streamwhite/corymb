@@ -1,12 +1,22 @@
 import { existsSync } from "fs";
 import path from "path";
+import type { DbDialect } from "@/constants/database.js";
 import { ENV_MIGRATIONS_FOLDER } from "@/constants/migrations.js";
 
 const DIR_NAME_DB = "db";
-const DIR_NAME_MIGRATIONS = "migrations";
+const MIGRATIONS_FOLDER_SQLITE = "migrations" as const;
+const MIGRATIONS_FOLDER_POSTGRES = "migrations-pg" as const;
 const JOURNAL_SEGMENTS = ["meta", "_journal.json"] as const;
 
+export { MIGRATIONS_FOLDER_POSTGRES, MIGRATIONS_FOLDER_SQLITE };
+
 const BUN_RUNTIME_NAMES = new Set(["bun", "bun.exe"]);
+
+function migrationsDirName(dialect: DbDialect): string {
+  return dialect === "postgres"
+    ? MIGRATIONS_FOLDER_POSTGRES
+    : MIGRATIONS_FOLDER_SQLITE;
+}
 
 function journalPath(folder: string): string {
   return path.join(folder, ...JOURNAL_SEGMENTS);
@@ -26,7 +36,7 @@ function fromExplicitEnv(): string | null {
 }
 
 /** Standalone `bun build --compile` binary: migrations live on disk next to the exe. */
-function fromCompiledExecutableSibling(): string | null {
+function fromCompiledExecutableSibling(dialect: DbDialect): string | null {
   const exe = process.execPath;
   const base = path.basename(exe).toLowerCase();
   if (BUN_RUNTIME_NAMES.has(base)) {
@@ -35,42 +45,43 @@ function fromCompiledExecutableSibling(): string | null {
   const candidate = path.join(
     path.dirname(exe),
     DIR_NAME_DB,
-    DIR_NAME_MIGRATIONS,
+    migrationsDirName(dialect),
   );
   return hasMigrationsJournal(candidate) ? candidate : null;
 }
 
 /** Bundled `dist/index.js`, tests (`src/db`), or dev entry: use `import.meta.dir`. */
-function fromImportMetaDir(): string {
+function fromImportMetaDir(dialect: DbDialect): string {
+  const dirName = migrationsDirName(dialect);
   const here = import.meta.dir;
   return path.basename(here) === DIR_NAME_DB
-    ? path.join(here, DIR_NAME_MIGRATIONS)
-    : path.join(here, DIR_NAME_DB, DIR_NAME_MIGRATIONS);
+    ? path.join(here, dirName)
+    : path.join(here, DIR_NAME_DB, dirName);
 }
 
-function migrationsMissingHint(): string {
+function migrationsMissingHint(dialect: DbDialect): string {
   const exe = process.execPath;
   const sibling = path.join(
     path.dirname(exe),
     DIR_NAME_DB,
-    DIR_NAME_MIGRATIONS,
+    migrationsDirName(dialect),
   );
-  return `Expected SQL migrations (with meta/_journal.json) under ${fromImportMetaDir()} or—when using a compiled binary—next to the executable (${sibling}). Override with ${ENV_MIGRATIONS_FOLDER}=<absolute-or-relative-path>.`;
+  return `Expected SQL migrations (with meta/_journal.json) under ${fromImportMetaDir(dialect)} or—when using a compiled binary—next to the executable (${sibling}). Override with ${ENV_MIGRATIONS_FOLDER}=<absolute-or-relative-path>.`;
 }
 
-export function resolveMigrationsFolder(): string {
+export function resolveMigrationsFolder(dialect: DbDialect = "sqlite"): string {
   const fromEnv = fromExplicitEnv();
   if (fromEnv !== null) {
     return fromEnv;
   }
-  const fromExe = fromCompiledExecutableSibling();
+  const fromExe = fromCompiledExecutableSibling(dialect);
   if (fromExe !== null) {
     return fromExe;
   }
-  const fallback = fromImportMetaDir();
+  const fallback = fromImportMetaDir(dialect);
   if (!hasMigrationsJournal(fallback)) {
     throw new Error(
-      `Cannot find migrations journal: ${migrationsMissingHint()}`,
+      `Cannot find migrations journal: ${migrationsMissingHint(dialect)}`,
     );
   }
   return fallback;

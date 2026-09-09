@@ -31,9 +31,12 @@ import {
 import {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
+  REALTIME_EVENTS_BASE_PATH,
   UI_AUTH_BASE_PATH,
   UPLOAD_BASE_PATH,
 } from "@/constants/routes.js";
+import type { EventBus } from "@/realtime/event-bus.js";
+import { createRealtimeEventsHandler } from "@/realtime/sse-route.js";
 import { withSecurityHeadersFromRequest } from "@/http/security-headers.js";
 import type { Mailer } from "@/mail/mailer-types.js";
 import { apiDocsResponse } from "@/server/api-docs.js";
@@ -52,6 +55,7 @@ export type RouteBundle = {
   mailer: Mailer;
   cache: Cache;
   auth: BetterAuthInstance;
+  events: EventBus;
 };
 
 export type ServeRoutesOptions = {
@@ -137,6 +141,10 @@ export function buildServeRoutes(
   const standard = RATE_LIMIT_STRATEGY_STANDARD;
   const relaxed = RATE_LIMIT_STRATEGY_RELAXED;
   const authHandler = wrapAuthHandler(auth, strict);
+  const handleRealtimeEvents = createRealtimeEventsHandler({
+    auth,
+    bus: bundle.events,
+  });
   return {
     [DOCS_BASE_PATH]: {
       GET: withRateLimit(relaxed, buildDocsHandler(docsAccess)),
@@ -168,6 +176,13 @@ export function buildServeRoutes(
     [UPLOAD_BASE_PATH]: {
       POST: withRateLimit(standard, (req) =>
         handleFileUpload(req, { uploadDir }),
+      ),
+    },
+    [REALTIME_EVENTS_BASE_PATH]: {
+      GET: withRateLimit(relaxed, (req) =>
+        handleRealtimeEvents(req).then((res) =>
+          withSecurityHeadersFromRequest(res, req, "api"),
+        ),
       ),
     },
   };

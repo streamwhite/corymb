@@ -102,7 +102,10 @@ describe("server-side session management", () => {
     const secondBearer = secondSignin.headers.get(SET_AUTH_TOKEN_HEADER);
     expect(secondBearer).toBeTruthy();
 
-    const secondSession = await readSession(app.request, secondBearer as string);
+    const secondSession = await readSession(
+      app.request,
+      secondBearer as string,
+    );
     const secondOpaque = secondSession?.session?.token;
     expect(secondOpaque).toBeTruthy();
 

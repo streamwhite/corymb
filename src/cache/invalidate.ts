@@ -1,10 +1,6 @@
 import { invalidateKeys } from "@/cache/cache-aside.js";
 import type { Cache } from "@/cache/cache-types.js";
-import {
-  sessionByIdKey,
-  userByEmailKey,
-  userByIdKey,
-} from "@/cache/keys.js";
+import { sessionByIdKey, userByEmailKey, userByIdKey } from "@/cache/keys.js";
 
 export type InvalidateUserInput = {
   id: string;

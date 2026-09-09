@@ -1,5 +1,5 @@
-import { createSeedRuntime } from "@/db/seed-runtime.js";
 import { seedDatabase } from "@/db/seed.js";
+import { createSeedRuntime } from "@/db/seed-runtime.js";
 
 async function main(): Promise<void> {
   const runtime = await createSeedRuntime();

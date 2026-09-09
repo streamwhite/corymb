@@ -8,8 +8,7 @@ import {
 
 function buildUserRows() {
   return Array.from({ length: SEED_USER_COUNT }, (_, index) => {
-    const username =
-      `seeduser_${String(index)}_${faker.string.alphanumeric(8).toLowerCase()}`;
+    const username = `seeduser_${String(index)}_${faker.string.alphanumeric(8).toLowerCase()}`;
     return {
       email: `seed-${String(index)}-${faker.internet.username()}@example.test`,
       username,

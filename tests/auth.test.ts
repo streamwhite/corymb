@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
 import { AUTH_SESSION_ROTATE_PATH } from "@/constants/better-auth.js";
-import { VALID_TEST_USERNAME } from "./constants.js";
+import {
+  HEADER_CONTENT_TYPE,
+  MIME_JSON,
+  VALID_TEST_USERNAME,
+} from "./constants.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
 import {
   BA_GET_SESSION_PATH,
@@ -13,7 +17,6 @@ import {
   SET_AUTH_TOKEN_HEADER,
   signupUser,
 } from "./helpers/auth-flow.js";
-import { HEADER_CONTENT_TYPE, MIME_JSON } from "./constants.js";
 
 const jsonHeaders = {
   [HEADER_CONTENT_TYPE]: MIME_JSON,

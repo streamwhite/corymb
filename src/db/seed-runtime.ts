@@ -1,11 +1,11 @@
+import { openAuthDatabase } from "@/auth/auth-database.js";
 import {
-  createBetterAuth,
-  openAuthSqlite,
   type BetterAuthInstance,
+  createBetterAuth,
 } from "@/auth/better-auth.js";
-import { createMemoryCache } from "@/cache/memory-cache.js";
 import { createCacheBundle } from "@/cache/client.js";
-import { createDbBundle, closeDbBundle, type DbBundle } from "@/db/client.js";
+import { createMemoryCache } from "@/cache/memory-cache.js";
+import { closeDbBundle, createDbBundle, type DbBundle } from "@/db/client.js";
 import { createNoopMailer } from "@/mail/noop-mailer.js";
 import { resolveMailerFromEnv } from "@/mail/resolve-mailer.js";
 
@@ -25,9 +25,13 @@ export async function createSeedRuntime(options?: {
   const cacheBundle = options?.useMemoryCache
     ? { cache: createMemoryCache(), close: () => {} }
     : await createCacheBundle();
-  const authSqlite = openAuthSqlite(bundle.databasePath);
+  const authDatabase = openAuthDatabase({
+    dialect: bundle.dialect,
+    sqlitePath: bundle.sqlitePath,
+    pgUrl: bundle.pgUrl,
+  });
   const auth = createBetterAuth({
-    database: authSqlite.database,
+    database: authDatabase.database,
     cache: cacheBundle.cache,
     mailer: options?.useMemoryCache
       ? createNoopMailer()
@@ -42,7 +46,7 @@ export async function createSeedRuntime(options?: {
     bundle,
     auth,
     close: async () => {
-      authSqlite.close();
+      await authDatabase.close();
       await closeDbBundle(bundle);
       cacheBundle.close();
     },

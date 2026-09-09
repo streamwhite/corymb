@@ -2,7 +2,11 @@ import { cpSync, mkdirSync } from "fs";
 import path from "path";
 
 const ROOT = path.join(import.meta.dir, "..");
-const SRC = path.join(ROOT, "src", "db", "migrations");
-const DEST = path.join(ROOT, "dist", "db", "migrations");
-mkdirSync(DEST, { recursive: true });
-cpSync(SRC, DEST, { recursive: true });
+const FOLDERS = ["migrations", "migrations-pg"];
+
+for (const folder of FOLDERS) {
+  const SRC = path.join(ROOT, "src", "db", folder);
+  const DEST = path.join(ROOT, "dist", "db", folder);
+  mkdirSync(DEST, { recursive: true });
+  cpSync(SRC, DEST, { recursive: true });
+}

@@ -1,8 +1,10 @@
 import { BETTER_AUTH_BASE_PATH } from "@/constants/better-auth.js";
 import { HEADER_CONTENT_TYPE, MIME_JSON } from "../constants.js";
 
-export const BA_SIGN_UP_PATH = `${BETTER_AUTH_BASE_PATH}/sign-up/email` as const;
-export const BA_SIGN_IN_PATH = `${BETTER_AUTH_BASE_PATH}/sign-in/email` as const;
+export const BA_SIGN_UP_PATH =
+  `${BETTER_AUTH_BASE_PATH}/sign-up/email` as const;
+export const BA_SIGN_IN_PATH =
+  `${BETTER_AUTH_BASE_PATH}/sign-in/email` as const;
 export const BA_SIGN_OUT_PATH = `${BETTER_AUTH_BASE_PATH}/sign-out` as const;
 export const BA_GET_SESSION_PATH =
   `${BETTER_AUTH_BASE_PATH}/get-session` as const;

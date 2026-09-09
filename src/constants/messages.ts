@@ -64,3 +64,6 @@ export const MSG_VERIFY_EMAIL_TOKEN_REQUIRED =
   "Verification token is required" as const;
 
 export const MSG_EMAIL_VERIFIED = "Email verified" as const;
+
+export const MSG_PASSKEY_LIMIT_EXCEEDED =
+  "Passkey limit reached; delete an existing passkey first" as const;

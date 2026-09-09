@@ -1,17 +1,16 @@
 import type { SQL } from "bun";
-import { type CreateAppOptions, createApp } from "@/app.js";
-import { createMemoryCache } from "@/cache/memory-cache.js";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { type CreateAppOptions, createApp } from "@/app.js";
+import { createMemoryCache } from "@/cache/memory-cache.js";
 import {
   createInMemoryMailer,
   type InMemoryMailer,
 } from "@/mail/in-memory-mailer.js";
 import { scheduleTestDispose } from "../dispose-guard.js";
 
-const TEST_AUTH_SECRET =
-  "test-better-auth-secret-at-least-32-chars!!" as const;
+const TEST_AUTH_SECRET = "test-better-auth-secret-at-least-32-chars!!" as const;
 
 export type MemoryAppWithMail = {
   app: {

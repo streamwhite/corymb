@@ -10,6 +10,7 @@ export const auth = createBetterAuth({
   database,
   cache: createNoopCache(),
   mailer: createNoopMailer(),
-  secret: process.env.BETTER_AUTH_SECRET ?? "cli-secret-at-least-32-characters!!",
+  secret:
+    process.env.BETTER_AUTH_SECRET ?? "cli-secret-at-least-32-characters!!",
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
 });

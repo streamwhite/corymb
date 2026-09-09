@@ -73,14 +73,10 @@ export async function handleSessionRotate(
     1,
     Math.floor((new Date(created.expiresAt).getTime() - Date.now()) / 1000),
   );
-  const setCookie = serializeSessionCookie(
-    sessionCookie.name,
-    created.token,
-    {
-      ...sessionCookie.attributes,
-      maxAge: maxAgeSeconds,
-    },
-  );
+  const setCookie = serializeSessionCookie(sessionCookie.name, created.token, {
+    ...sessionCookie.attributes,
+    maxAge: maxAgeSeconds,
+  });
 
   const body = {
     ok: true as const,

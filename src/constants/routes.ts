@@ -13,3 +13,10 @@ export const DOCS_BASE_PATH = `/${DOCS_SEGMENT}` as const;
 export const UPLOAD_SEGMENT = "upload" as const;
 
 export const UPLOAD_BASE_PATH = `/${UPLOAD_SEGMENT}` as const;
+
+export const REALTIME_SEGMENT = "realtime" as const;
+
+export const EVENTS_SEGMENT = "events" as const;
+
+export const REALTIME_EVENTS_BASE_PATH =
+  `/${REALTIME_SEGMENT}/${EVENTS_SEGMENT}` as const;

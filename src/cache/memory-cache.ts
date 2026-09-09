@@ -20,8 +20,7 @@ export function createMemoryCache(): Cache {
       return entry.value;
     },
     async set(key: string, value: string, ttlSeconds: number): Promise<void> {
-      const expiresAt =
-        ttlSeconds > 0 ? Date.now() + ttlSeconds * 1000 : null;
+      const expiresAt = ttlSeconds > 0 ? Date.now() + ttlSeconds * 1000 : null;
       store.set(key, { value, expiresAt });
     },
     async del(key: string): Promise<void> {

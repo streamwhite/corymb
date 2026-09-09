@@ -38,6 +38,8 @@ export const DOCS_GROUP_AUTH = "Auth" as const;
 
 export const DOCS_GROUP_UPLOAD = "Upload" as const;
 
+export const DOCS_GROUP_REALTIME = "Realtime" as const;
+
 export const DOCS_EP_HEALTH_TITLE = "Health check" as const;
 
 export const DOCS_EP_AUTH_UI_TITLE = "Auth page" as const;
@@ -69,6 +71,8 @@ export const DOCS_EP_PASSKEY_ADD_TITLE = "Add passkey" as const;
 export const DOCS_EP_PASSKEY_LIST_TITLE = "List passkeys" as const;
 
 export const DOCS_EP_PASSKEY_DELETE_TITLE = "Delete passkey" as const;
+
+export const DOCS_EP_EVENTS_TITLE = "Realtime events (SSE, session required)" as const;
 
 /** Placeholder path in curl `-F file=@…` (replace with a real local file). */
 export const DOC_EXAMPLE_UPLOAD_CURL_PATH = "path/to/local-file.txt" as const;

@@ -47,9 +47,14 @@ export const AUTH_REVOKE_OTHER_SESSIONS_PATH =
 export const MIN_BETTER_AUTH_SECRET_BYTES = 32 as const;
 
 /** Better Auth passkey plugin. */
-export const ENV_BETTER_AUTH_PASSKEY_RP_ID = "BETTER_AUTH_PASSKEY_RP_ID" as const;
+export const ENV_BETTER_AUTH_PASSKEY_RP_ID =
+  "BETTER_AUTH_PASSKEY_RP_ID" as const;
 export const ENV_BETTER_AUTH_PASSKEY_ORIGIN =
   "BETTER_AUTH_PASSKEY_ORIGIN" as const;
+
+export const ENV_MAX_PASSKEYS_PER_USER = "MAX_PASSKEYS_PER_USER" as const;
+
+export const DEFAULT_MAX_PASSKEYS_PER_USER = 5 as const;
 
 export const PASSKEY_RP_NAME = "Backend Template" as const;
 
@@ -188,4 +193,11 @@ export function resolvePasskeyOriginFromEnv(baseURL: string): string {
     return s.slice(0, -1);
   }
   return s;
+}
+
+export function resolveMaxPasskeysPerUserFromEnv(): number {
+  return parsePositiveInt(
+    process.env[ENV_MAX_PASSKEYS_PER_USER],
+    DEFAULT_MAX_PASSKEYS_PER_USER,
+  );
 }

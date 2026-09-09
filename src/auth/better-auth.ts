@@ -1,11 +1,12 @@
-import { betterAuth } from "better-auth";
 import { passkey } from "@better-auth/passkey";
+import { betterAuth } from "better-auth";
 import { bearer } from "better-auth/plugins/bearer";
 import { jwt } from "better-auth/plugins/jwt";
 import { username } from "better-auth/plugins/username";
-import { Database } from "bun:sqlite";
-import type { Cache } from "@/cache/cache-types.js";
+import type { AuthDatabaseDriver } from "@/auth/auth-database.js";
+import { createPasskeyLimitHook } from "@/auth/passkey-limit.js";
 import { createSecondaryStorage } from "@/auth/secondary-storage.js";
+import type { Cache } from "@/cache/cache-types.js";
 import { BCRYPT_COST } from "@/constants/auth.js";
 import {
   BETTER_AUTH_BASE_PATH,
@@ -14,6 +15,7 @@ import {
   resolveBetterAuthSecretFromEnv,
   resolveBetterAuthUrlFromEnv,
   resolveCookieCacheMaxAgeSecondsFromEnv,
+  resolveMaxPasskeysPerUserFromEnv,
   resolvePasskeyRpIdFromEnv,
   resolveSessionExpiresInSecondsFromEnv,
   resolveSessionUpdateAgeSecondsFromEnv,
@@ -33,12 +35,14 @@ import {
 export type BetterAuthInstance = ReturnType<typeof createBetterAuth>;
 
 export type CreateBetterAuthOptions = {
-  database: Database;
+  database: AuthDatabaseDriver;
   cache: Cache;
   mailer: Mailer;
   secret?: string;
   baseURL?: string;
   trustedOrigins?: string[];
+  /** Maximum passkeys per user (defaults to env or built-in default). */
+  maxPasskeysPerUser?: number;
 };
 
 async function hashPassword(password: string): Promise<string> {
@@ -102,6 +106,11 @@ export function createBetterAuth(
         maxAge: resolveCookieCacheMaxAgeSecondsFromEnv(),
       },
     },
+    hooks: {
+      before: createPasskeyLimitHook(
+        options.maxPasskeysPerUser ?? resolveMaxPasskeysPerUserFromEnv(),
+      ),
+    },
     verification: {
       storeInDatabase: true,
     },
@@ -129,21 +138,4 @@ export function createBetterAuth(
       }),
     ],
   });
-}
-
-export type AuthSqliteBundle = {
-  database: Database;
-  close: () => void;
-};
-
-export function openAuthSqlite(databasePath: string): AuthSqliteBundle {
-  const database = new Database(databasePath, { create: true });
-  database.exec("PRAGMA journal_mode = WAL;");
-  database.exec("PRAGMA foreign_keys = ON;");
-  return {
-    database,
-    close: () => {
-      database.close();
-    },
-  };
 }

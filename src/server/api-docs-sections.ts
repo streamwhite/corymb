@@ -7,42 +7,48 @@ import {
   DOCS_EP_AUTH_UI_TITLE,
   DOCS_EP_FORGOT_PASSWORD_TITLE,
   DOCS_EP_HEALTH_TITLE,
-  DOCS_EP_RESET_PASSWORD_TITLE,
-  DOCS_EP_ROTATE_SESSION_TITLE,
   DOCS_EP_LIST_SESSIONS_TITLE,
+  DOCS_EP_PASSKEY_ADD_TITLE,
+  DOCS_EP_PASSKEY_DELETE_TITLE,
+  DOCS_EP_PASSKEY_LIST_TITLE,
+  DOCS_EP_PASSKEY_SIGNIN_TITLE,
+  DOCS_EP_RESET_PASSWORD_TITLE,
   DOCS_EP_REVOKE_SESSION_TITLE,
+  DOCS_EP_ROTATE_SESSION_TITLE,
   DOCS_EP_SIGNIN_TITLE,
   DOCS_EP_SIGNOUT_TITLE,
   DOCS_EP_SIGNUP_TITLE,
   DOCS_EP_TOKEN_TITLE,
   DOCS_EP_UPLOAD_TITLE,
-  DOCS_EP_PASSKEY_SIGNIN_TITLE,
-  DOCS_EP_PASSKEY_ADD_TITLE,
-  DOCS_EP_PASSKEY_LIST_TITLE,
-  DOCS_EP_PASSKEY_DELETE_TITLE,
+  DOCS_EP_EVENTS_TITLE,
   DOCS_GROUP_AUTH,
   DOCS_GROUP_AUTH_UI,
   DOCS_GROUP_HEALTH,
+  DOCS_GROUP_REALTIME,
   DOCS_GROUP_UPLOAD,
   docsExampleHttpBase,
 } from "@/constants/api-docs.js";
-import { AUTH_BEARER_HEADER_PREFIX, MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
+import {
+  AUTH_BEARER_HEADER_PREFIX,
+  MIN_PASSWORD_LENGTH,
+} from "@/constants/auth.js";
 import {
   AUTH_LIST_SESSIONS_PATH,
+  AUTH_PASSKEY_DELETE_PASSKEY_PATH,
+  AUTH_PASSKEY_GENERATE_AUTHENTICATE_OPTIONS_PATH,
+  AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH,
+  AUTH_PASSKEY_LIST_USER_PASSKEYS_PATH,
+  AUTH_PASSKEY_VERIFY_AUTHENTICATION_PATH,
+  AUTH_PASSKEY_VERIFY_REGISTRATION_PATH,
   AUTH_REVOKE_SESSION_PATH,
   AUTH_SESSION_ROTATE_PATH,
-  AUTH_PASSKEY_GENERATE_AUTHENTICATE_OPTIONS_PATH,
-  AUTH_PASSKEY_VERIFY_AUTHENTICATION_PATH,
-  AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH,
-  AUTH_PASSKEY_VERIFY_REGISTRATION_PATH,
-  AUTH_PASSKEY_LIST_USER_PASSKEYS_PATH,
-  AUTH_PASSKEY_DELETE_PASSKEY_PATH,
   BETTER_AUTH_BASE_PATH,
 } from "@/constants/better-auth.js";
 import { HEADER_AUTHORIZATION } from "@/constants/http-security.js";
 import {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
+  REALTIME_EVENTS_BASE_PATH,
   UI_AUTH_BASE_PATH,
   UPLOAD_BASE_PATH,
 } from "@/constants/routes.js";
@@ -99,10 +105,12 @@ function curlSignup(base: string): string {
 }
 
 function curlSignin(base: string): string {
-  return `curl -sS -X POST "${base}${BA_SIGN_IN}" \\\n  -H "Content-Type: application/json" \\\n  -c cookies.txt \\\n  -d '${JSON.stringify({
-    email: DOC_EXAMPLE_EMAIL,
-    password: DOC_EXAMPLE_PASSWORD,
-  })}'`;
+  return `curl -sS -X POST "${base}${BA_SIGN_IN}" \\\n  -H "Content-Type: application/json" \\\n  -c cookies.txt \\\n  -d '${JSON.stringify(
+    {
+      email: DOC_EXAMPLE_EMAIL,
+      password: DOC_EXAMPLE_PASSWORD,
+    },
+  )}'`;
 }
 
 function curlSignout(base: string): string {
@@ -305,6 +313,19 @@ function uploadGroup(base: string): ApiDocGroup {
   };
 }
 
+function realtimeGroup(base: string): ApiDocGroup {
+  return {
+    heading: DOCS_GROUP_REALTIME,
+    items: [
+      {
+        title: DOCS_EP_EVENTS_TITLE,
+        subtitle: `GET ${REALTIME_EVENTS_BASE_PATH}`,
+        curl: `curl -sS -N -b cookies.txt "${base}${REALTIME_EVENTS_BASE_PATH}"`,
+      },
+    ],
+  };
+}
+
 export function getApiDocGroups(): ApiDocGroup[] {
   const base = docsExampleHttpBase();
   return [
@@ -312,5 +333,6 @@ export function getApiDocGroups(): ApiDocGroup[] {
     authUiGroup(base),
     authGroup(base),
     uploadGroup(base),
+    realtimeGroup(base),
   ];
 }

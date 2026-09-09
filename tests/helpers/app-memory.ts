@@ -5,8 +5,7 @@ import { type CreateAppOptions, createApp } from "@/app.js";
 import { createMemoryCache } from "@/cache/memory-cache.js";
 import { scheduleTestDispose } from "../dispose-guard.js";
 
-const TEST_AUTH_SECRET =
-  "test-better-auth-secret-at-least-32-chars!!" as const;
+const TEST_AUTH_SECRET = "test-better-auth-secret-at-least-32-chars!!" as const;
 
 export async function createMemoryApp(options?: CreateAppOptions) {
   const dir = mkdtempSync(join(tmpdir(), "ba-app-"));

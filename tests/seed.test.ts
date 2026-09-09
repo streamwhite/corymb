@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { SEED_USER_COUNT } from "@/constants/seed.js";
-import { createSeedRuntime } from "@/db/seed-runtime.js";
-import { seedDatabase } from "@/db/seed.js";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { SEED_USER_COUNT } from "@/constants/seed.js";
+import { seedDatabase } from "@/db/seed.js";
+import { createSeedRuntime } from "@/db/seed-runtime.js";
 
 function countFrom(rows: unknown, key: string): number {
   if (!Array.isArray(rows) || rows.length === 0) {

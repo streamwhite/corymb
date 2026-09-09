@@ -1,9 +1,27 @@
 import type { SQL } from "bun";
+import type { DbDialect } from "@/constants/database.js";
 import { readMigrationFiles } from "@/db/read-migration-files.js";
 
 const MIGRATIONS_TABLE = "__drizzle_migrations" as const;
 
-type LastMigrationRow = {
+const CREATE_MIGRATIONS_TABLE_SQL: Record<DbDialect, string> = {
+  sqlite: `
+CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  hash text NOT NULL,
+  created_at numeric
+)
+`,
+  postgres: `
+CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
+  id SERIAL PRIMARY KEY,
+  hash text NOT NULL,
+  created_at bigint
+)
+`,
+};
+
+export type LastMigrationRow = {
   id: number;
   hash: string;
   created_at: number;
@@ -31,15 +49,10 @@ function shouldApplyMigration(
 export async function applyMigrations(
   sql: SQL,
   migrationsFolder: string,
+  dialect: DbDialect,
 ): Promise<void> {
   const migrations = readMigrationFiles(migrationsFolder);
-  await sql.unsafe(`
-CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  hash text NOT NULL,
-  created_at numeric
-)
-`);
+  await sql.unsafe(CREATE_MIGRATIONS_TABLE_SQL[dialect]);
   const dbMigrations = await sql.unsafe(
     `SELECT id, hash, created_at FROM ${MIGRATIONS_TABLE} ORDER BY created_at DESC LIMIT 1`,
   );
@@ -63,3 +76,4 @@ CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
     }
   });
 }
+

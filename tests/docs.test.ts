@@ -6,14 +6,12 @@ import {
   DOCS_GROUP_HEADING_CLASS,
   DOCS_GROUP_UPLOAD,
 } from "@/constants/api-docs.js";
+import { BETTER_AUTH_BASE_PATH } from "@/constants/better-auth.js";
 import {
   DOCS_ACCESS_MODE_DEVELOPMENT,
   DOCS_ACCESS_MODE_PRODUCTION,
 } from "@/constants/docs-access.js";
 import { MSG_HTTP_NOT_FOUND } from "@/constants/messages.js";
-import {
-  BETTER_AUTH_BASE_PATH,
-} from "@/constants/better-auth.js";
 import {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,

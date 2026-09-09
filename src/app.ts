@@ -1,8 +1,8 @@
 import type { Serve, SQL } from "bun";
+import { openAuthDatabase } from "@/auth/auth-database.js";
 import {
-  createBetterAuth,
-  openAuthSqlite,
   type BetterAuthInstance,
+  createBetterAuth,
 } from "@/auth/better-auth.js";
 import type { Cache } from "@/cache/cache-types.js";
 import { closeCacheBundle, createCacheBundle } from "@/cache/client.js";
@@ -15,6 +15,7 @@ import {
   HTTP_STATUS_NOT_FOUND,
 } from "@/constants/http-status.js";
 import { MSG_HTTP_NOT_FOUND, MSG_INTERNAL } from "@/constants/messages.js";
+import { resolveRedisUrlFromEnv } from "@/constants/redis.js";
 import { closeDbBundle, createDbBundle, type DbOptions } from "@/db/client.js";
 import {
   withSecurityHeaders,
@@ -22,6 +23,8 @@ import {
 } from "@/http/security-headers.js";
 import type { Mailer } from "@/mail/mailer-types.js";
 import { resolveMailerFromEnv } from "@/mail/resolve-mailer.js";
+import { type EventBus } from "@/realtime/event-bus.js";
+import { createDefaultEventBus } from "@/realtime/redis-event-bus.js";
 import { resolveUploadRoot } from "@/runtime/resolve-upload-dir.js";
 import { buildServeRoutes } from "@/server/serve-routes.js";
 
@@ -39,8 +42,10 @@ export type CreateAppOptions = DbOptions & {
   authSecret?: string;
   /** Override Better Auth base URL (tests). */
   authBaseURL?: string;
-  /** Override trusted origins (tests). */
+  /** Override Better Auth trusted origins (tests). */
   authTrustedOrigins?: string[];
+  /** Override event bus (tests); defaults to Redis pub/sub with memory fallback. */
+  events?: EventBus;
 };
 
 export type AppInstance = {
@@ -73,18 +78,27 @@ function onServeError(err: unknown): Response {
 export async function createApp(
   options?: CreateAppOptions,
 ): Promise<AppInstance> {
-  const [bundle, cacheBundle] = await Promise.all([
+  const [bundle, cacheBundle, eventsBundle] = await Promise.all([
     createDbBundle(options),
     options?.cache !== undefined
       ? Promise.resolve({ cache: options.cache, close: () => {} })
       : createCacheBundle({ redisUrl: options?.redisUrl }),
+    options?.events !== undefined
+      ? Promise.resolve({ bus: options.events, owned: false })
+      : createDefaultEventBus({
+          url: options?.redisUrl ?? resolveRedisUrlFromEnv(),
+        }).then(({ bus }) => ({ bus, owned: true })),
   ]);
-  const authSqlite = openAuthSqlite(bundle.databasePath);
+  const authDatabase = openAuthDatabase({
+    dialect: bundle.dialect,
+    sqlitePath: bundle.sqlitePath,
+    pgUrl: bundle.pgUrl,
+  });
   const docsAccess = options?.docsAccess ?? DEFAULT_DOCS_ACCESS_MODE;
   const uploadDir = resolveUploadRoot({ uploadDir: options?.uploadDir });
   const mailer = options?.mailer ?? resolveMailerFromEnv();
   const auth = createBetterAuth({
-    database: authSqlite.database,
+    database: authDatabase.database,
     cache: cacheBundle.cache,
     mailer,
     secret: options?.authSecret,
@@ -99,6 +113,7 @@ export async function createApp(
         mailer,
         cache: cacheBundle.cache,
         auth,
+        events: eventsBundle.bus,
       },
       { docsAccess },
     ),
@@ -108,7 +123,12 @@ export async function createApp(
     cache: cacheBundle.cache,
     auth,
     close: async () => {
-      authSqlite.close();
+      if (eventsBundle.owned) {
+        await eventsBundle.bus.close().catch((err: unknown) =>
+          console.error("[events] close failed:", err),
+        );
+      }
+      await authDatabase.close();
       await closeDbBundle(bundle);
       closeCacheBundle(cacheBundle);
     },

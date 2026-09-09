@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
+import { HEADER_CONTENT_TYPE, MIME_JSON } from "./constants.js";
 import { createMemoryAppWithMailer } from "./helpers/app-memory-mail.js";
 import {
   BA_REQUEST_PASSWORD_RESET_PATH,
@@ -7,7 +8,6 @@ import {
   BA_SIGN_IN_PATH,
   signupUser,
 } from "./helpers/auth-flow.js";
-import { HEADER_CONTENT_TYPE, MIME_JSON } from "./constants.js";
 
 const jsonHeaders = {
   [HEADER_CONTENT_TYPE]: MIME_JSON,

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
+import { RedisClient } from "bun";
 import { getOrLoad } from "@/cache/cache-aside.js";
 import type { Cache } from "@/cache/cache-types.js";
 import { createNoopCache } from "@/cache/noop-cache.js";
 import { createRedisCache } from "@/cache/redis-cache.js";
-import { RedisClient } from "bun";
-import { ENV_REDIS_URL } from "@/constants/redis.js";
 import { MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
+import { ENV_REDIS_URL } from "@/constants/redis.js";
+import { VALID_TEST_USERNAME } from "./constants.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
 import { signupUser } from "./helpers/auth-flow.js";
-import { VALID_TEST_USERNAME } from "./constants.js";
 
 type SampleRow = { id: string; name: string };
 

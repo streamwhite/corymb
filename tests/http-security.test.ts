@@ -21,15 +21,10 @@ import {
   RATE_LIMIT_STRATEGY_RELAXED,
   RATE_LIMIT_STRATEGY_STRICT,
 } from "@/constants/rate-limit.js";
-import {
-  BA_SIGN_IN_PATH,
-} from "./helpers/auth-flow.js";
-import {
-  DOCS_BASE_PATH,
-  HEALTH_BASE_PATH,
-} from "@/constants/routes.js";
+import { DOCS_BASE_PATH, HEALTH_BASE_PATH } from "@/constants/routes.js";
 import { setRateLimitMaxOverrideForTests } from "@/http/rate-limit.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
+import { BA_SIGN_IN_PATH } from "./helpers/auth-flow.js";
 
 describe("http security", () => {
   it("adds common security headers on health JSON", async () => {

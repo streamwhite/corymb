@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
+import { MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
 import {
   AUTH_PASSKEY_DELETE_PASSKEY_PATH,
   AUTH_PASSKEY_GENERATE_AUTHENTICATE_OPTIONS_PATH,
   AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH,
   AUTH_PASSKEY_LIST_USER_PASSKEYS_PATH,
 } from "@/constants/better-auth.js";
-import { MIN_PASSWORD_LENGTH } from "@/constants/auth.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
 import { signupUser } from "./helpers/auth-flow.js";
 
@@ -31,10 +31,9 @@ describe("passkey auth", () => {
 
   it("GET /passkey/generate-register-options unauthenticated => 401", async () => {
     const { app } = await createMemoryApp();
-    const res = await app.request(
-      AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH,
-      { method: "GET" },
-    );
+    const res = await app.request(AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH, {
+      method: "GET",
+    });
     expect(res.status).toBe(401);
   });
 
@@ -60,13 +59,10 @@ describe("passkey auth", () => {
     });
     expect(signed.token).toBeTruthy();
 
-    const res = await app.request(
-      AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH,
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${signed.token}` },
-      },
-    );
+    const res = await app.request(AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${signed.token}` },
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       rp: { id: string; name: string };

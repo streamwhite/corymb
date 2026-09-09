@@ -1,11 +1,11 @@
-import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
+import { resolveDatabaseConfigFromEnv } from "@/constants/database.js";
 import { closeDbBundle, createDbBundle } from "@/db/client.js";
-import { resolveSqlitePathFromEnv } from "@/db/resolve-sqlite-path.js";
 
 async function main(): Promise<void> {
-  if (resolveSqlitePathFromEnv() === SQLITE_IN_MEMORY) {
+  const config = resolveDatabaseConfigFromEnv();
+  if (config.dialect === "sqlite" && config.sqlitePath === ":memory:") {
     console.error(
-      "Refusing to migrate with SQLITE_PATH=:memory:. Set SQLITE_PATH to a file.",
+      "Refusing to migrate an in-memory database. Set SQLITE_PATH or DATABASE_URL to a persistent target.",
     );
     process.exit(1);
   }

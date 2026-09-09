@@ -75,9 +75,7 @@ export function ttlSecondsUntilExpiry(
   if (Number.isNaN(expiresMs)) {
     return capSeconds;
   }
-  const remainingSeconds = Math.ceil(
-    (expiresMs - Date.now()) / MS_PER_SECOND,
-  );
+  const remainingSeconds = Math.ceil((expiresMs - Date.now()) / MS_PER_SECOND);
   if (remainingSeconds <= 0) {
     return 1;
   }

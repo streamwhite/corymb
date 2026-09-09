@@ -1,9 +1,9 @@
+import { BETTER_AUTH_BASE_PATH } from "@/constants/better-auth.js";
 import {
   DEFAULT_APP_PUBLIC_BASE_URL,
   ENV_APP_PUBLIC_BASE_URL,
   MAIL_LINK_TOKEN_PARAM,
 } from "@/constants/mail.js";
-import { BETTER_AUTH_BASE_PATH } from "@/constants/better-auth.js";
 
 const RESET_PASSWORD_PATH = `${BETTER_AUTH_BASE_PATH}/reset-password` as const;
 const VERIFY_EMAIL_PATH = `${BETTER_AUTH_BASE_PATH}/verify-email` as const;
