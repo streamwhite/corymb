@@ -6,7 +6,7 @@ import {
 import { resolveRedisUrlFromEnv } from "@/constants/redis.js";
 
 const NODE_ENV_DEVELOPMENT = "development" as const;
-const APP_ENTRY = "src/index.ts" as const;
+const APP_ENTRY = "src/cli.ts" as const;
 const SIGNAL_SIGINT = "SIGINT" as const;
 const SIGNAL_SIGTERM = "SIGTERM" as const;
 

@@ -6,6 +6,15 @@ export const ENV_HOST_KEY = "HOST" as const;
 
 export const DEFAULT_HTTP_PORT = 3000;
 
+const RADIX_DECIMAL = 10;
+
+export function resolveListenPort(): number {
+  const raw = process.env[ENV_PORT_KEY];
+  const parsed =
+    raw === undefined ? DEFAULT_HTTP_PORT : Number.parseInt(raw, RADIX_DECIMAL);
+  return Number.isFinite(parsed) ? parsed : DEFAULT_HTTP_PORT;
+}
+
 /** Bind loopback in dev so `server.url` / WebAuthn rpID resolve to localhost. */
 export const HOST_DEVELOPMENT = "localhost" as const;
 

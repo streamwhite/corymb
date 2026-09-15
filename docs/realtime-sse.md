@@ -20,10 +20,9 @@
 任何数据变更后调用 `publishRealtimeEvent` 广播(经 Redis pub/sub 跨实例分发):
 
 ```ts
-import { publishRealtimeEvent } from "@/realtime/publish.js";
-import type { EventBus } from "@/realtime/event-bus.js";
+import { publishRealtimeEvent, type EventBus } from "bun-backend-starter";
 
-await publishRealtimeEvent(bus /* EventBus */, {
+await publishRealtimeEvent(bus /* EventBus — e.g. app.events */, {
   type: "item.updated",        // 自定义事件类型
   data: { id: "abc", name: "new name" },
   at: Date.now(),

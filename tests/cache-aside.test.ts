@@ -101,10 +101,17 @@ describe("auth cache-aside", () => {
 
 const redisUrl = process.env[ENV_REDIS_URL];
 
+const REDIS_PROBE_TIMEOUT_MS = 1000;
+
 async function redisAvailable(url: string): Promise<boolean> {
   const client = new RedisClient(url, { connectionTimeout: 500 });
   try {
-    const reply = await client.send("PING", []);
+    const reply = await Promise.race([
+      client.send("PING", []),
+      new Promise<string | null>((resolve) =>
+        setTimeout(() => resolve(null), REDIS_PROBE_TIMEOUT_MS),
+      ),
+    ]);
     return reply === "PONG";
   } catch {
     return false;

@@ -20,6 +20,7 @@ import {
   DOCS_EP_SIGNUP_TITLE,
   DOCS_EP_TOKEN_TITLE,
   DOCS_EP_UPLOAD_TITLE,
+  DOCS_EP_VERIFY_SESSION_TITLE,
   DOCS_EP_EVENTS_TITLE,
   DOCS_GROUP_AUTH,
   DOCS_GROUP_AUTH_UI,
@@ -42,6 +43,7 @@ import {
   AUTH_PASSKEY_VERIFY_REGISTRATION_PATH,
   AUTH_REVOKE_SESSION_PATH,
   AUTH_SESSION_ROTATE_PATH,
+  AUTH_SESSION_VERIFY_PATH,
   BETTER_AUTH_BASE_PATH,
 } from "@/constants/better-auth.js";
 import { HEADER_AUTHORIZATION } from "@/constants/http-security.js";
@@ -120,6 +122,15 @@ function curlSignout(base: string): string {
 function curlRotate(base: string): string {
   const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
   return `curl -sS -X POST "${base}${AUTH_SESSION_ROTATE_PATH}" \\\n  -H "${HEADER_AUTHORIZATION}: ${authValue}"`;
+}
+
+function curlVerifySession(base: string): string {
+  const authValue = `${AUTH_BEARER_HEADER_PREFIX}${DOC_EXAMPLE_SESSION_TOKEN_PLACEHOLDER}`;
+  return curlPostJson(
+    `${base}${AUTH_SESSION_VERIFY_PATH}`,
+    { password: DOC_EXAMPLE_PASSWORD },
+    [`-H "${HEADER_AUTHORIZATION}: ${authValue}"`],
+  );
 }
 
 function curlListSessions(base: string): string {
@@ -245,6 +256,11 @@ function authGroup(base: string): ApiDocGroup {
         title: DOCS_EP_ROTATE_SESSION_TITLE,
         subtitle: `POST ${AUTH_SESSION_ROTATE_PATH}`,
         curl: curlRotate(base),
+      },
+      {
+        title: DOCS_EP_VERIFY_SESSION_TITLE,
+        subtitle: `POST ${AUTH_SESSION_VERIFY_PATH}`,
+        curl: curlVerifySession(base),
       },
       {
         title: DOCS_EP_LIST_SESSIONS_TITLE,

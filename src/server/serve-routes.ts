@@ -1,10 +1,17 @@
 import type { Serve, SQL } from "bun";
 import type { BetterAuthInstance } from "@/auth/better-auth.js";
+import {
+  withSensitiveOperation,
+} from "@/auth/sensitive-guard.js";
 import { handleSessionRotate } from "@/auth/session-rotate.js";
+import { handleSensitiveVerify } from "@/auth/sensitive-verify.js";
+import { createSensitiveVerifyStore } from "@/auth/sensitive-verify-store.js";
 import type { Cache } from "@/cache/cache-types.js";
 import {
   AUTH_SESSION_ROTATE_PATH,
+  AUTH_SESSION_VERIFY_PATH,
   BETTER_AUTH_BASE_PATH,
+  resolveSessionFreshAgeSecondsFromEnv,
 } from "@/constants/better-auth.js";
 import {
   DEFAULT_DOCS_ACCESS_MODE,
@@ -28,6 +35,7 @@ import {
   RATE_LIMIT_STRATEGY_STANDARD,
   RATE_LIMIT_STRATEGY_STRICT,
 } from "@/constants/rate-limit.js";
+import { resolveSensitiveVerifyTtlSecondsFromEnv } from "@/constants/sensitive-auth.js";
 import {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
@@ -134,7 +142,7 @@ function wrapAuthHandler(
 export function buildServeRoutes(
   bundle: RouteBundle,
   opts?: ServeRoutesOptions,
-): NonNullable<Serve["routes"]> {
+): Serve.Routes<unknown, string> {
   const { uploadDir, auth } = bundle;
   const docsAccess = opts?.docsAccess ?? DEFAULT_DOCS_ACCESS_MODE;
   const strict = RATE_LIMIT_STRATEGY_STRICT;
@@ -145,6 +153,16 @@ export function buildServeRoutes(
     auth,
     bus: bundle.events,
   });
+  const sensitiveStore = createSensitiveVerifyStore(
+    bundle.cache,
+    resolveSensitiveVerifyTtlSecondsFromEnv(),
+  );
+  const sensitiveDeps = {
+    auth,
+    store: sensitiveStore,
+    freshAgeSeconds: resolveSessionFreshAgeSecondsFromEnv(),
+    ttlSeconds: resolveSensitiveVerifyTtlSecondsFromEnv(),
+  };
   return {
     [DOCS_BASE_PATH]: {
       GET: withRateLimit(relaxed, buildDocsHandler(docsAccess)),
@@ -155,15 +173,28 @@ export function buildServeRoutes(
     [UI_AUTH_BASE_PATH]: {
       GET: withRateLimit(relaxed, authUiHandler),
     },
-    [AUTH_SESSION_ROTATE_PATH]: {
+    [AUTH_SESSION_VERIFY_PATH]: {
       POST: withRateLimit(strict, async (req) => {
         const oversized = rejectOversizedJson(req);
         if (oversized !== null) {
           return withSecurityHeadersFromRequest(oversized, req, "api");
         }
-        const res = await handleSessionRotate(req, auth);
+        const res = await handleSensitiveVerify(req, sensitiveDeps);
         return withSecurityHeadersFromRequest(res, req, "api");
       }),
+    },
+    [AUTH_SESSION_ROTATE_PATH]: {
+      POST: withRateLimit(
+        strict,
+        withSensitiveOperation(sensitiveDeps, async (req) => {
+          const oversized = rejectOversizedJson(req);
+          if (oversized !== null) {
+            return withSecurityHeadersFromRequest(oversized, req, "api");
+          }
+          const res = await handleSessionRotate(req, auth);
+          return withSecurityHeadersFromRequest(res, req, "api");
+        }),
+      ),
     },
     [BETTER_AUTH_BASE_PATH]: {
       GET: authHandler,

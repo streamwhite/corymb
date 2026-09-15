@@ -50,7 +50,7 @@ function fromCompiledExecutableSibling(dialect: DbDialect): string | null {
   return hasMigrationsJournal(candidate) ? candidate : null;
 }
 
-/** Bundled `dist/index.js`, tests (`src/db`), or dev entry: use `import.meta.dir`. */
+/** Bundled `dist/cli.js`, tests (`src/db`), or dev entry: use `import.meta.dir`. */
 function fromImportMetaDir(dialect: DbDialect): string {
   const dirName = migrationsDirName(dialect);
   const here = import.meta.dir;

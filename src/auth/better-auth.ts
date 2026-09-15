@@ -18,6 +18,7 @@ import {
   resolveMaxPasskeysPerUserFromEnv,
   resolvePasskeyRpIdFromEnv,
   resolveSessionExpiresInSecondsFromEnv,
+  resolveSessionFreshAgeSecondsFromEnv,
   resolveSessionUpdateAgeSecondsFromEnv,
   resolveTrustedOrigins,
 } from "@/constants/better-auth.js";
@@ -56,9 +57,7 @@ async function verifyPassword(data: {
   return Bun.password.verify(data.password, data.hash);
 }
 
-export function createBetterAuth(
-  options: CreateBetterAuthOptions,
-): ReturnType<typeof betterAuth> {
+export function createBetterAuth(options: CreateBetterAuthOptions) {
   const secret = options.secret ?? resolveBetterAuthSecretFromEnv();
   const baseURL = options.baseURL ?? resolveBetterAuthUrlFromEnv();
   const secondaryStorage = createSecondaryStorage(options.cache);
@@ -100,6 +99,7 @@ export function createBetterAuth(
     session: {
       expiresIn: resolveSessionExpiresInSecondsFromEnv(),
       updateAge: resolveSessionUpdateAgeSecondsFromEnv(),
+      freshAge: resolveSessionFreshAgeSecondsFromEnv(),
       storeSessionInDatabase: true,
       cookieCache: {
         enabled: true,

@@ -34,7 +34,7 @@ export type CreateAppOptions = DbOptions & {
   uploadDir?: string;
   /** Optional mailer (defaults to console mailer via env). */
   mailer?: Mailer;
-  /** Test-only cache override (defaults to Redis via `REDIS_URL`). */
+  /** Cache override (defaults to Redis via `REDIS_URL`). Use `createMemoryCache()` for local/tests. */
   cache?: Cache;
   /** Override Redis URL when creating the default cache bundle. */
   redisUrl?: string;
@@ -46,15 +46,18 @@ export type CreateAppOptions = DbOptions & {
   authTrustedOrigins?: string[];
   /** Override event bus (tests); defaults to Redis pub/sub with memory fallback. */
   events?: EventBus;
+  /** Extra `Bun.serve` routes merged after built-ins (consumer paths win on conflict). */
+  routes?: Serve.Routes<unknown, string>;
 };
 
 export type AppInstance = {
-  routes: NonNullable<Serve["routes"]>;
+  routes: Serve.Routes<unknown, string>;
   fetchNotFound: (req: Request) => Response;
   onServeError: (err: unknown) => Response | Promise<Response>;
   sql: SQL;
   cache: Cache;
   auth: BetterAuthInstance;
+  events: EventBus;
   close: () => Promise<void>;
 };
 
@@ -105,23 +108,28 @@ export async function createApp(
     baseURL: options?.authBaseURL,
     trustedOrigins: options?.authTrustedOrigins,
   });
+  const builtInRoutes = buildServeRoutes(
+    {
+      sql: bundle.sql,
+      uploadDir,
+      mailer,
+      cache: cacheBundle.cache,
+      auth,
+      events: eventsBundle.bus,
+    },
+    { docsAccess },
+  );
   return {
-    routes: buildServeRoutes(
-      {
-        sql: bundle.sql,
-        uploadDir,
-        mailer,
-        cache: cacheBundle.cache,
-        auth,
-        events: eventsBundle.bus,
-      },
-      { docsAccess },
-    ),
+    routes: {
+      ...builtInRoutes,
+      ...(options?.routes ?? {}),
+    },
     fetchNotFound,
     onServeError,
     sql: bundle.sql,
     cache: cacheBundle.cache,
     auth,
+    events: eventsBundle.bus,
     close: async () => {
       if (eventsBundle.owned) {
         await eventsBundle.bus.close().catch((err: unknown) =>

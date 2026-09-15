@@ -1,3 +1,5 @@
+import { parsePositiveIntEnv } from "@/constants/env-int.js";
+
 const SECONDS_PER_MINUTE = 60 as const;
 const SECONDS_PER_HOUR = SECONDS_PER_MINUTE * 60;
 const SECONDS_PER_DAY = SECONDS_PER_HOUR * 24;
@@ -17,6 +19,9 @@ export const ENV_SESSION_UPDATE_AGE_SECONDS =
 export const ENV_COOKIE_CACHE_MAX_AGE_SECONDS =
   "COOKIE_CACHE_MAX_AGE_SECONDS" as const;
 
+export const ENV_SESSION_FRESH_AGE_SECONDS =
+  "SESSION_FRESH_AGE_SECONDS" as const;
+
 export const DEFAULT_BETTER_AUTH_URL = "http://localhost:3000" as const;
 
 export const DEFAULT_ACCESS_JWT_EXPIRATION = "15m" as const;
@@ -27,10 +32,17 @@ export const DEFAULT_SESSION_UPDATE_AGE_SECONDS = SECONDS_PER_DAY;
 
 export const DEFAULT_COOKIE_CACHE_MAX_AGE_SECONDS = SECONDS_PER_MINUTE * 5;
 
+/** Sessions older than this require re-authentication for sensitive operations (Better Auth `freshAge`). */
+export const DEFAULT_SESSION_FRESH_AGE_SECONDS = SECONDS_PER_HOUR;
+
 export const BETTER_AUTH_BASE_PATH = "/api/auth" as const;
 
 export const AUTH_SESSION_ROTATE_PATH =
   `${BETTER_AUTH_BASE_PATH}/session/rotate` as const;
+
+/** Step-up re-authentication: verify the current user's password for sensitive operations. */
+export const AUTH_SESSION_VERIFY_PATH =
+  `${BETTER_AUTH_BASE_PATH}/session/verify` as const;
 
 /** Better Auth built-in: list active server-side sessions. */
 export const AUTH_LIST_SESSIONS_PATH =
@@ -120,35 +132,31 @@ export function resolveAccessJwtExpirationFromEnv(): string {
   return DEFAULT_ACCESS_JWT_EXPIRATION;
 }
 
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  if (raw === undefined || raw.length === 0) {
-    return fallback;
-  }
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-  return parsed;
-}
-
 export function resolveSessionExpiresInSecondsFromEnv(): number {
-  return parsePositiveInt(
+  return parsePositiveIntEnv(
     process.env[ENV_SESSION_EXPIRES_IN_SECONDS],
     DEFAULT_SESSION_EXPIRES_IN_SECONDS,
   );
 }
 
 export function resolveSessionUpdateAgeSecondsFromEnv(): number {
-  return parsePositiveInt(
+  return parsePositiveIntEnv(
     process.env[ENV_SESSION_UPDATE_AGE_SECONDS],
     DEFAULT_SESSION_UPDATE_AGE_SECONDS,
   );
 }
 
 export function resolveCookieCacheMaxAgeSecondsFromEnv(): number {
-  return parsePositiveInt(
+  return parsePositiveIntEnv(
     process.env[ENV_COOKIE_CACHE_MAX_AGE_SECONDS],
     DEFAULT_COOKIE_CACHE_MAX_AGE_SECONDS,
+  );
+}
+
+export function resolveSessionFreshAgeSecondsFromEnv(): number {
+  return parsePositiveIntEnv(
+    process.env[ENV_SESSION_FRESH_AGE_SECONDS],
+    DEFAULT_SESSION_FRESH_AGE_SECONDS,
   );
 }
 
@@ -196,7 +204,7 @@ export function resolvePasskeyOriginFromEnv(baseURL: string): string {
 }
 
 export function resolveMaxPasskeysPerUserFromEnv(): number {
-  return parsePositiveInt(
+  return parsePositiveIntEnv(
     process.env[ENV_MAX_PASSKEYS_PER_USER],
     DEFAULT_MAX_PASSKEYS_PER_USER,
   );

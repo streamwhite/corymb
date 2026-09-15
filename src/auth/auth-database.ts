@@ -44,13 +44,3 @@ export function openAuthDatabase(config: DatabaseConfig): AuthDatabaseBundle {
   }
   return openAuthSqlite(config.sqlitePath ?? SQLITE_IN_MEMORY);
 }
-
-export function openAuthDatabase(config: DatabaseConfig): AuthDatabaseBundle {
-  if (config.dialect === "postgres") {
-    if (config.pgUrl === undefined) {
-      throw new Error("Postgres dialect requires a connection URL");
-    }
-    return openAuthPostgres(config.pgUrl);
-  }
-  return openAuthSqlite(config.sqlitePath ?? SQLITE_IN_MEMORY);
-}

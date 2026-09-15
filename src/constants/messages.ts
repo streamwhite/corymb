@@ -67,3 +67,9 @@ export const MSG_EMAIL_VERIFIED = "Email verified" as const;
 
 export const MSG_PASSKEY_LIMIT_EXCEEDED =
   "Passkey limit reached; delete an existing passkey first" as const;
+
+export const MSG_SENSITIVE_VERIFICATION_REQUIRED =
+  "Sensitive operation requires re-authentication" as const;
+
+export const MSG_PASSWORD_NOT_SET =
+  "Account has no password; sign in again to continue" as const;

@@ -52,6 +52,8 @@ export const DOCS_EP_SIGNOUT_TITLE = "Signout" as const;
 
 export const DOCS_EP_ROTATE_SESSION_TITLE = "Rotate session" as const;
 
+export const DOCS_EP_VERIFY_SESSION_TITLE = "Verify session (step-up)" as const;
+
 export const DOCS_EP_LIST_SESSIONS_TITLE = "List sessions" as const;
 
 export const DOCS_EP_REVOKE_SESSION_TITLE = "Revoke session" as const;

@@ -1,75 +1,37 @@
-import { createApp } from "@/app.js";
-import {
-  DEFAULT_HTTP_PORT,
-  ENV_PORT_KEY,
-  resolveListenHost,
-  SIGNAL_SIGINT,
-  SIGNAL_SIGTERM,
-} from "@/constants/server.js";
-import { devTlsServeOptions, resolveDevTlsPaths } from "@/server/dev-tls.js";
-
-const RADIX_DECIMAL = 10;
-
-function resolveListenPort(): number {
-  const raw = process.env[ENV_PORT_KEY];
-  const parsed =
-    raw === undefined ? DEFAULT_HTTP_PORT : Number.parseInt(raw, RADIX_DECIMAL);
-  return Number.isFinite(parsed) ? parsed : DEFAULT_HTTP_PORT;
-}
-
-let isShuttingDown = false;
-
-async function shutdown(
-  server: ReturnType<typeof Bun.serve>,
-  closeApp: () => Promise<void>,
-): Promise<void> {
-  if (isShuttingDown) {
-    return;
-  }
-  isShuttingDown = true;
-  try {
-    await server.stop();
-  } catch (err) {
-    console.error(err);
-    process.exitCode = 1;
-  }
-  try {
-    await closeApp();
-  } catch (err) {
-    console.error(err);
-    process.exitCode = 1;
-  }
-  process.exit(process.exitCode ?? 0);
-}
-
-async function main(): Promise<void> {
-  const tlsPaths = resolveDevTlsPaths();
-  const tlsOpts = tlsPaths ? devTlsServeOptions(tlsPaths) : {};
-  if (tlsPaths) {
-    console.info(`TLS enabled (${tlsPaths.cert})`);
-  }
-
-  const app = await createApp();
-  const server = Bun.serve({
-    routes: app.routes,
-    fetch: app.fetchNotFound,
-    error: app.onServeError,
-    port: resolveListenPort(),
-    hostname: resolveListenHost(),
-    ...tlsOpts,
-  });
-
-  console.info(`Server listening on ${server.url.href}`);
-
-  process.once(SIGNAL_SIGINT, () => {
-    void shutdown(server, app.close);
-  });
-  process.once(SIGNAL_SIGTERM, () => {
-    void shutdown(server, app.close);
-  });
-}
-
-void main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+export { createApp } from "@/app.js";
+export type { AppInstance, CreateAppOptions } from "@/app.js";
+export { startServer } from "@/server/start-server.js";
+export type { StartServerOptions, StartServerResult } from "@/server/start-server.js";
+export { DEFAULT_HTTP_PORT, ENV_HOST_KEY, ENV_PORT_KEY } from "@/constants/server.js";
+export type { Cache, CacheBundle } from "@/cache/cache-types.js";
+export { createMemoryCache } from "@/cache/memory-cache.js";
+export type { Mailer, MailMessage } from "@/mail/mailer-types.js";
+export type { EventBus } from "@/realtime/event-bus.js";
+export { createMemoryEventBus } from "@/realtime/event-bus.js";
+export { publishRealtimeEvent } from "@/realtime/publish.js";
+export type { RealtimeEvent } from "@/constants/realtime.js";
+export { REALTIME_EVENTS_CHANNEL } from "@/constants/realtime.js";
+export { withRateLimit } from "@/server/with-rate-limit.js";
+export {
+  isSessionFresh,
+  requireSensitiveVerification,
+  withSensitiveOperation,
+} from "@/auth/sensitive-guard.js";
+export type {
+  SensitiveGuardDeps,
+  SensitiveRouteHandler,
+} from "@/auth/sensitive-guard.js";
+export { createSensitiveVerifyStore } from "@/auth/sensitive-verify-store.js";
+export type { SensitiveVerifyStore } from "@/auth/sensitive-verify-store.js";
+export { AUTH_SESSION_VERIFY_PATH } from "@/constants/better-auth.js";
+export { SENSITIVE_VERIFICATION_REQUIRED_CODE } from "@/constants/sensitive-auth.js";
+export type { DocsAccessMode } from "@/constants/docs-access.js";
+export type { DbOptions, DbBundle } from "@/db/client.js";
+export type { DatabaseConfig, DbDialect } from "@/constants/database.js";
+export {
+  DOCS_BASE_PATH,
+  HEALTH_BASE_PATH,
+  REALTIME_EVENTS_BASE_PATH,
+  UI_AUTH_BASE_PATH,
+  UPLOAD_BASE_PATH,
+} from "@/constants/routes.js";
