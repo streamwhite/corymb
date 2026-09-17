@@ -5,6 +5,8 @@ export const HEADER_CONTENT_LENGTH = "Content-Length" as const;
 
 export const HEADER_AUTHORIZATION = "Authorization" as const;
 
+export const HEADER_USER_AGENT = "User-Agent" as const;
+
 export const HEADER_RETRY_AFTER = "Retry-After" as const;
 
 export const HEADER_X_CONTENT_TYPE_OPTIONS = "X-Content-Type-Options" as const;

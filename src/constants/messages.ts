@@ -73,3 +73,5 @@ export const MSG_SENSITIVE_VERIFICATION_REQUIRED =
 
 export const MSG_PASSWORD_NOT_SET =
   "Account has no password; sign in again to continue" as const;
+
+export const MSG_BOT_BLOCKED = "Automated client blocked" as const;

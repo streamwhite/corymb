@@ -13,6 +13,21 @@ export type { RealtimeEvent } from "@/constants/realtime.js";
 export { REALTIME_EVENTS_CHANNEL } from "@/constants/realtime.js";
 export { withRateLimit } from "@/server/with-rate-limit.js";
 export {
+  blockRequestIfBot,
+  detectRequestBot,
+  setBotDetectionModeForTests,
+  withBotDetection,
+} from "@/bot/bot-guard.js";
+export { classifyUserAgent, shouldBlockBot } from "@/bot/bot-detection.js";
+export type { BotClassification, BotKind } from "@/bot/bot-detection.js";
+export { buildRobotsTxt, robotsTxtResponse } from "@/bot/bot-response.js";
+export type { BotDetectionMode, BotTokenLists } from "@/constants/bot.js";
+export {
+  BOT_DETECTION_MODE_BLOCK,
+  BOT_DETECTION_MODE_LOG,
+  BOT_DETECTION_MODE_OFF,
+} from "@/constants/bot.js";
+export {
   isSessionFresh,
   requireSensitiveVerification,
   withSensitiveOperation,
@@ -32,6 +47,7 @@ export {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
   REALTIME_EVENTS_BASE_PATH,
+  ROBOTS_TXT_PATH,
   UI_AUTH_BASE_PATH,
   UPLOAD_BASE_PATH,
 } from "@/constants/routes.js";

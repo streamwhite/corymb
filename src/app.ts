@@ -4,6 +4,7 @@ import {
   type BetterAuthInstance,
   createBetterAuth,
 } from "@/auth/better-auth.js";
+import { blockRequestIfBot } from "@/bot/bot-guard.js";
 import type { Cache } from "@/cache/cache-types.js";
 import { closeCacheBundle, createCacheBundle } from "@/cache/client.js";
 import {
@@ -62,6 +63,10 @@ export type AppInstance = {
 };
 
 function fetchNotFound(req: Request): Response {
+  const blocked = blockRequestIfBot(req);
+  if (blocked !== null) {
+    return blocked;
+  }
   const res = Response.json(
     { error: MSG_HTTP_NOT_FOUND },
     { status: HTTP_STATUS_NOT_FOUND },

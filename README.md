@@ -8,8 +8,8 @@ Production-ready Bun backend as an installable package: authentication, persiste
 - **Databases** — SQLite (default, file or `:memory:`) or PostgreSQL via `DATABASE_URL`
 - **Realtime** — authenticated SSE events (Redis pub/sub fan-out, in-memory fallback)
 - **Caching** — Redis cache-aside for auth sessions/users (`createMemoryCache()` for local/tests)
-- **Hardening** — security headers, request size caps, tiered in-memory rate limiting
-- **Docs** — API docs page (`/docs`), auth UI page (`/ui`), uploads (`/upload`)
+- **Hardening** — security headers, request size caps, tiered in-memory rate limiting, bot detection (`isbot`)
+- **Docs** — API docs page (`/docs`), auth UI page (`/ui`), uploads (`/upload`), `/robots.txt`
 
 ## Requirements
 

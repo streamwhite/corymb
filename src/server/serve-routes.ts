@@ -7,6 +7,8 @@ import { handleSessionRotate } from "@/auth/session-rotate.js";
 import { handleSensitiveVerify } from "@/auth/sensitive-verify.js";
 import { createSensitiveVerifyStore } from "@/auth/sensitive-verify-store.js";
 import type { Cache } from "@/cache/cache-types.js";
+import { withBotDetection, type BotRouteHandler } from "@/bot/bot-guard.js";
+import { robotsTxtResponse } from "@/bot/bot-response.js";
 import {
   AUTH_SESSION_ROTATE_PATH,
   AUTH_SESSION_VERIFY_PATH,
@@ -40,6 +42,7 @@ import {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
   REALTIME_EVENTS_BASE_PATH,
+  ROBOTS_TXT_PATH,
   UI_AUTH_BASE_PATH,
   UPLOAD_BASE_PATH,
 } from "@/constants/routes.js";
@@ -139,6 +142,23 @@ function wrapAuthHandler(
   });
 }
 
+function applyBotDetection(
+  routes: Serve.Routes<unknown, string>,
+): Serve.Routes<unknown, string> {
+  const wrapped: Record<string, Record<string, unknown>> = {};
+  for (const [path, route] of Object.entries(routes)) {
+    const methods: Record<string, unknown> = {};
+    for (const [method, handler] of Object.entries(route ?? {})) {
+      methods[method] =
+        typeof handler === "function"
+          ? withBotDetection(handler as BotRouteHandler)
+          : handler;
+    }
+    wrapped[path] = methods;
+  }
+  return wrapped as unknown as Serve.Routes<unknown, string>;
+}
+
 export function buildServeRoutes(
   bundle: RouteBundle,
   opts?: ServeRoutesOptions,
@@ -163,7 +183,7 @@ export function buildServeRoutes(
     freshAgeSeconds: resolveSessionFreshAgeSecondsFromEnv(),
     ttlSeconds: resolveSensitiveVerifyTtlSecondsFromEnv(),
   };
-  return {
+  const guardedRoutes: Serve.Routes<unknown, string> = {
     [DOCS_BASE_PATH]: {
       GET: withRateLimit(relaxed, buildDocsHandler(docsAccess)),
     },
@@ -215,6 +235,12 @@ export function buildServeRoutes(
           withSecurityHeadersFromRequest(res, req, "api"),
         ),
       ),
+    },
+  };
+  return {
+    ...applyBotDetection(guardedRoutes),
+    [ROBOTS_TXT_PATH]: {
+      GET: withRateLimit(relaxed, robotsTxtResponse),
     },
   };
 }

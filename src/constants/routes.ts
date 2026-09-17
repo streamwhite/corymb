@@ -20,3 +20,7 @@ export const EVENTS_SEGMENT = "events" as const;
 
 export const REALTIME_EVENTS_BASE_PATH =
   `/${REALTIME_SEGMENT}/${EVENTS_SEGMENT}` as const;
+
+export const ROBOTS_SEGMENT = "robots.txt" as const;
+
+export const ROBOTS_TXT_PATH = `/${ROBOTS_SEGMENT}` as const;
