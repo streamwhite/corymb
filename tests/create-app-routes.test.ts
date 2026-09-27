@@ -1,7 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
 import { createApp } from "@/app.js";
 import { createMemoryCache } from "@/cache/memory-cache.js";
 import { REALTIME_EVENTS_CHANNEL } from "@/constants/realtime.js";
@@ -9,6 +6,11 @@ import { HEALTH_BASE_PATH } from "@/constants/routes.js";
 import { createMemoryEventBus } from "@/realtime/event-bus.js";
 import { publishRealtimeEvent } from "@/realtime/publish.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
+import {
+  createTestDatabase,
+  dropTestDatabase,
+  PG_AVAILABLE,
+} from "./helpers/test-db.js";
 
 const TEST_AUTH_SECRET = "test-better-auth-secret-at-least-32-chars!!";
 
@@ -45,37 +47,41 @@ describe("createApp route merge + events", () => {
     expect(await health.json()).toEqual({ status: "custom" });
   });
 
-  it("exposes events on AppInstance and publishRealtimeEvent works", async () => {
-    const bus = createMemoryEventBus();
-    const messages: string[] = [];
-    await bus.subscribe(REALTIME_EVENTS_CHANNEL, (message) => {
-      messages.push(message);
-    });
+  it.skipIf(!PG_AVAILABLE)(
+    "exposes events on AppInstance and publishRealtimeEvent works",
+    async () => {
+      const bus = createMemoryEventBus();
+      const messages: string[] = [];
+      await bus.subscribe(REALTIME_EVENTS_CHANNEL, (message) => {
+        messages.push(message);
+      });
 
-    const dir = mkdtempSync(join(tmpdir(), "ba-events-"));
-    const instance = await createApp({
-      databasePath: join(dir, "test.sqlite"),
-      cache: createMemoryCache(),
-      authSecret: TEST_AUTH_SECRET,
-      authBaseURL: "http://127.0.0.1",
-      authTrustedOrigins: ["http://127.0.0.1", "http://localhost"],
-      events: bus,
-    });
-    try {
-      expect(instance.events).toBe(bus);
-      await publishRealtimeEvent(instance.events, {
-        type: "widget.created",
-        data: { id: "1" },
-        at: 1,
+      const pgUrl = await createTestDatabase();
+      const instance = await createApp({
+        databaseConfig: { pgUrl },
+        cache: createMemoryCache(),
+        authSecret: TEST_AUTH_SECRET,
+        authBaseURL: "http://127.0.0.1",
+        authTrustedOrigins: ["http://127.0.0.1", "http://localhost"],
+        events: bus,
       });
-      expect(messages).toHaveLength(1);
-      expect(JSON.parse(messages[0]!)).toEqual({
-        type: "widget.created",
-        data: { id: "1" },
-        at: 1,
-      });
-    } finally {
-      await instance.close();
-    }
-  });
+      try {
+        expect(instance.events).toBe(bus);
+        await publishRealtimeEvent(instance.events, {
+          type: "widget.created",
+          data: { id: "1" },
+          at: 1,
+        });
+        expect(messages).toHaveLength(1);
+        expect(JSON.parse(messages[0]!)).toEqual({
+          type: "widget.created",
+          data: { id: "1" },
+          at: 1,
+        });
+      } finally {
+        await instance.close();
+        await dropTestDatabase(pgUrl);
+      }
+    },
+  );
 });

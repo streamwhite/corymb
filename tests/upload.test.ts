@@ -17,12 +17,16 @@ import {
   UPLOAD_FORM_FIELD_NAME,
   UPLOAD_MAX_BYTES,
 } from "@/constants/upload.js";
+import { createFilesystemStorage } from "@/storage/filesystem-storage.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
 
 describe("upload", () => {
   it("stores multipart file and returns metadata", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "hono-upload-"));
-    const { app } = await createMemoryApp({ uploadDir: dir });
+    const { app } = await createMemoryApp({
+      uploadDir: dir,
+      storage: createFilesystemStorage(dir),
+    });
     const fd = new FormData();
     fd.set(
       UPLOAD_FORM_FIELD_NAME,
@@ -35,10 +39,24 @@ describe("upload", () => {
       body: fd,
     });
     expect(res.status).toBe(HTTP_STATUS_CREATED);
-    const body = (await res.json()) as { storedName?: string; size?: number };
+    const body = (await res.json()) as { key?: string; size?: number };
     expect(body.size).toBe(5);
-    expect(body.storedName).toMatch(/^[0-9a-f-]+_note\.txt$/i);
-    expect(existsSync(path.join(dir, body.storedName ?? ""))).toBe(true);
+    expect(body.key).toMatch(/^[0-9a-f-]+_note\.txt$/i);
+    expect(existsSync(path.join(dir, body.key ?? ""))).toBe(true);
+  });
+
+  it("stores uploads via an injected memory storage", async () => {
+    const { app } = await createMemoryApp();
+    const fd = new FormData();
+    fd.set(
+      UPLOAD_FORM_FIELD_NAME,
+      new File([new TextEncoder().encode("hi")], "m.txt", { type: "text/plain" }),
+    );
+    const res = await app.request(UPLOAD_BASE_PATH, { method: "POST", body: fd });
+    expect(res.status).toBe(HTTP_STATUS_CREATED);
+    const body = (await res.json()) as { driver?: string; size?: number };
+    expect(body.driver).toBe("memory");
+    expect(body.size).toBe(2);
   });
 
   it("rejects when file field is not a file", async () => {

@@ -1,7 +1,9 @@
-import { seedDatabase } from "@/db/seed.js";
+import { migrateDatabase } from "@/db/migrate.js";
 import { createSeedRuntime } from "@/db/seed-runtime.js";
+import { seedDatabase } from "@/db/seed.js";
 
 async function main(): Promise<void> {
+  await migrateDatabase();
   const runtime = await createSeedRuntime();
   try {
     await seedDatabase(runtime.auth);

@@ -2,6 +2,7 @@ import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { bearer } from "better-auth/plugins/bearer";
 import { jwt } from "better-auth/plugins/jwt";
+import { twoFactor } from "better-auth/plugins/two-factor";
 import { username } from "better-auth/plugins/username";
 import type { AuthDatabaseDriver } from "@/auth/auth-database.js";
 import { createPasskeyLimitHook } from "@/auth/passkey-limit.js";
@@ -9,6 +10,8 @@ import { createSecondaryStorage } from "@/auth/secondary-storage.js";
 import type { Cache } from "@/cache/cache-types.js";
 import { BCRYPT_COST } from "@/constants/auth.js";
 import {
+  AUTH_JWT_ROLE_AUTHENTICATED,
+  AUTH_JWT_ROLE_CLAIM,
   BETTER_AUTH_BASE_PATH,
   PASSKEY_RP_NAME,
   resolveAccessJwtExpirationFromEnv,
@@ -24,8 +27,18 @@ import {
 } from "@/constants/better-auth.js";
 import {
   MAIL_SUBJECT_PASSWORD_RESET,
+  MAIL_SUBJECT_TWO_FACTOR_OTP,
   MAIL_SUBJECT_VERIFY_EMAIL,
 } from "@/constants/mail.js";
+import { twoFactorBody } from "@/mail/mail-bodies.js";
+import {
+  resolveTwoFactorIssuerFromEnv,
+  resolveTwoFactorOtpAttemptsFromEnv,
+  resolveTwoFactorOtpDigitsFromEnv,
+  resolveTwoFactorOtpPeriodMinutesFromEnv,
+  resolveTwoFactorTotpDigitsFromEnv,
+  resolveTwoFactorTotpPeriodSecondsFromEnv,
+} from "@/constants/two-factor.js";
 import { bcryptHashOptions } from "@/constants/password-hash.js";
 import type { Mailer } from "@/mail/mailer-types.js";
 import {
@@ -125,9 +138,32 @@ export function createBetterAuth(options: CreateBetterAuthOptions) {
       jwt({
         jwt: {
           expirationTime: resolveAccessJwtExpirationFromEnv(),
+          definePayload: ({ user }) => ({
+            [AUTH_JWT_ROLE_CLAIM]: AUTH_JWT_ROLE_AUTHENTICATED,
+            email: user.email,
+          }),
         },
       }),
       bearer(),
+      twoFactor({
+        issuer: resolveTwoFactorIssuerFromEnv(),
+        totpOptions: {
+          digits: resolveTwoFactorTotpDigitsFromEnv(),
+          period: resolveTwoFactorTotpPeriodSecondsFromEnv(),
+        },
+        otpOptions: {
+          digits: resolveTwoFactorOtpDigitsFromEnv(),
+          period: resolveTwoFactorOtpPeriodMinutesFromEnv(),
+          allowedAttempts: resolveTwoFactorOtpAttemptsFromEnv(),
+          sendOTP: async ({ user, otp }) => {
+            await mailer.send({
+              to: user.email,
+              subject: MAIL_SUBJECT_TWO_FACTOR_OTP,
+              text: twoFactorBody(otp, resolveTwoFactorOtpPeriodMinutesFromEnv()),
+            });
+          },
+        },
+      }),
       passkey({
         rpID: resolvePasskeyRpIdFromEnv(baseURL),
         rpName: PASSKEY_RP_NAME,

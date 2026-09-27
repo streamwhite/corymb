@@ -1,25 +1,15 @@
 import type { SQL } from "bun";
-import type { DbDialect } from "@/constants/database.js";
 import { readMigrationFiles } from "@/db/read-migration-files.js";
 
 const MIGRATIONS_TABLE = "__drizzle_migrations" as const;
 
-const CREATE_MIGRATIONS_TABLE_SQL: Record<DbDialect, string> = {
-  sqlite: `
-CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  hash text NOT NULL,
-  created_at numeric
-)
-`,
-  postgres: `
+const CREATE_MIGRATIONS_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
   id SERIAL PRIMARY KEY,
   hash text NOT NULL,
   created_at bigint
 )
-`,
-};
+`;
 
 export type LastMigrationRow = {
   id: number;
@@ -40,19 +30,32 @@ function shouldApplyMigration(
   last: LastMigrationRow | undefined,
   folderMillis: number,
 ): boolean {
-  if (last === undefined) {
-    return true;
+  return last === undefined || Number(last.created_at) < folderMillis;
+}
+
+async function applyOne(
+  tx: SQL,
+  statements: string[],
+  hash: string,
+  folderMillis: number,
+): Promise<void> {
+  for (const stmt of statements) {
+    if (stmt.length > 0) {
+      await tx.unsafe(stmt);
+    }
   }
-  return Number(last.created_at) < folderMillis;
+  await tx`
+    INSERT INTO __drizzle_migrations ("hash", "created_at")
+    VALUES (${hash}, ${folderMillis})
+  `;
 }
 
 export async function applyMigrations(
   sql: SQL,
   migrationsFolder: string,
-  dialect: DbDialect,
 ): Promise<void> {
   const migrations = readMigrationFiles(migrationsFolder);
-  await sql.unsafe(CREATE_MIGRATIONS_TABLE_SQL[dialect]);
+  await sql.unsafe(CREATE_MIGRATIONS_TABLE_SQL);
   const dbMigrations = await sql.unsafe(
     `SELECT id, hash, created_at FROM ${MIGRATIONS_TABLE} ORDER BY created_at DESC LIMIT 1`,
   );
@@ -64,16 +67,12 @@ export async function applyMigrations(
       if (!shouldApplyMigration(lastDbMigration, migration.folderMillis)) {
         continue;
       }
-      for (const stmt of migration.sql) {
-        if (stmt.length > 0) {
-          await tx.unsafe(stmt);
-        }
-      }
-      await tx`
-        INSERT INTO __drizzle_migrations ("hash", "created_at")
-        VALUES (${migration.hash}, ${migration.folderMillis})
-      `;
+      await applyOne(
+        tx,
+        migration.sql,
+        migration.hash,
+        migration.folderMillis,
+      );
     }
   });
 }
-

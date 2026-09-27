@@ -1,53 +1,40 @@
-import { openAuthDatabase } from "@/auth/auth-database.js";
-import {
-  type BetterAuthInstance,
-  createBetterAuth,
-} from "@/auth/better-auth.js";
+import { createAuthRuntime } from "@/auth/auth-runtime.js";
+import type { BetterAuthInstance } from "@/auth/better-auth.js";
 import { createCacheBundle } from "@/cache/client.js";
 import { createMemoryCache } from "@/cache/memory-cache.js";
-import { closeDbBundle, createDbBundle, type DbBundle } from "@/db/client.js";
+import type { DatabaseConfig } from "@/constants/database.js";
 import { createNoopMailer } from "@/mail/noop-mailer.js";
 import { resolveMailerFromEnv } from "@/mail/resolve-mailer.js";
 
+const TEST_AUTH_SECRET = "test-better-auth-secret-at-least-32-chars!!" as const;
+const TEST_BASE_URL = "http://127.0.0.1" as const;
+const TEST_TRUSTED_ORIGINS = ["http://127.0.0.1", "http://localhost"] as const;
+
 export type SeedRuntime = {
-  bundle: DbBundle;
   auth: BetterAuthInstance;
   close: () => Promise<void>;
 };
 
 export async function createSeedRuntime(options?: {
-  databasePath?: string;
   useMemoryCache?: boolean;
+  databaseConfig?: DatabaseConfig;
 }): Promise<SeedRuntime> {
-  const bundle = await createDbBundle({
-    databasePath: options?.databasePath,
-  });
-  const cacheBundle = options?.useMemoryCache
+  const useMemory = options?.useMemoryCache === true;
+  const cacheBundle = useMemory
     ? { cache: createMemoryCache(), close: () => {} }
     : await createCacheBundle();
-  const authDatabase = openAuthDatabase({
-    dialect: bundle.dialect,
-    sqlitePath: bundle.sqlitePath,
-    pgUrl: bundle.pgUrl,
-  });
-  const auth = createBetterAuth({
-    database: authDatabase.database,
+  const authRuntime = createAuthRuntime({
     cache: cacheBundle.cache,
-    mailer: options?.useMemoryCache
-      ? createNoopMailer()
-      : resolveMailerFromEnv(),
-    secret: options?.useMemoryCache
-      ? "test-better-auth-secret-at-least-32-chars!!"
-      : undefined,
-    baseURL: "http://127.0.0.1",
-    trustedOrigins: ["http://127.0.0.1", "http://localhost"],
+    mailer: useMemory ? createNoopMailer() : resolveMailerFromEnv(),
+    databaseConfig: options?.databaseConfig,
+    secret: useMemory ? TEST_AUTH_SECRET : undefined,
+    baseURL: TEST_BASE_URL,
+    trustedOrigins: [...TEST_TRUSTED_ORIGINS],
   });
   return {
-    bundle,
-    auth,
+    auth: authRuntime.auth,
     close: async () => {
-      await authDatabase.close();
-      await closeDbBundle(bundle);
+      await authRuntime.close();
       cacheBundle.close();
     },
   };

@@ -1,0 +1,22 @@
+# PostgREST configuration example. Copy, edit values, then run:
+#   postgrest postgrest.conf
+#
+# The JWKS file is produced by:  bunx bun-backend-starter jwks
+# Paths in `jwt-secret` starting with `@` are loaded from a file relative to the
+# process working directory.
+
+db-uri = "postgres://app_authenticator:CHANGE_ME@127.0.0.1:5432/mydb"
+db-schemas = "app"
+db-anon-role = "anon"
+
+# Verify Better Auth (EdDSA) access tokens against the exported public JWKS.
+jwt-secret = "@./jwks.json"
+jwt-role-claim-key = ".role"
+
+server-port = 3001
+
+# Optional hardening
+db-pool = 10
+db-pool-timeout = 10
+
+# Use `NOTIFY pgrst, 'reload config'` after re-exporting jwks.json.

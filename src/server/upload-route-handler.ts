@@ -1,5 +1,3 @@
-import { mkdir } from "node:fs/promises";
-import path from "node:path";
 import {
   HTTP_STATUS_BAD_REQUEST,
   HTTP_STATUS_CREATED,
@@ -18,9 +16,12 @@ import {
   UPLOAD_MAX_FILENAME_CHARS,
 } from "@/constants/upload.js";
 import { jsonApiResponse } from "@/http/json-response.js";
+import type { ObjectStorage } from "@/storage/storage-types.js";
 
 export type UploadRouteContext = {
-  uploadDir: string;
+  storage: ObjectStorage;
+  /** Object key prefix inside the bucket/root. */
+  keyPrefix?: string;
 };
 
 const FALLBACK_STORED_NAME = "upload.bin" as const;
@@ -32,16 +33,14 @@ function safeStoredBase(name: string): string {
   return clipped.length > 0 ? clipped : FALLBACK_STORED_NAME;
 }
 
-function storedObjectName(originalName: string): string {
-  return `${crypto.randomUUID()}_${safeStoredBase(originalName)}`;
+function storedObjectName(prefix: string, originalName: string): string {
+  const name = `${crypto.randomUUID()}_${safeStoredBase(originalName)}`;
+  return prefix.length > 0 ? `${prefix.replace(/\/+$/u, "")}/${name}` : name;
 }
 
 function getUploadFile(form: FormData): File | null {
-  const v = form.get(UPLOAD_FORM_FIELD_NAME);
-  if (v === null) {
-    return null;
-  }
-  return v instanceof File ? v : null;
+  const value = form.get(UPLOAD_FORM_FIELD_NAME);
+  return value instanceof File ? value : null;
 }
 
 async function readMultipartForm(req: Request): Promise<FormData | null> {
@@ -80,11 +79,24 @@ export async function handleFileUpload(
       url,
     );
   }
-  const objectName = storedObjectName(file.name);
-  const dest = path.join(ctx.uploadDir, objectName);
+  const key = storedObjectName(ctx.keyPrefix ?? "", file.name);
   try {
-    await mkdir(ctx.uploadDir, { recursive: true });
-    await Bun.write(dest, file);
+    const stored = await ctx.storage.put({
+      key,
+      body: new Uint8Array(await file.arrayBuffer()),
+      contentType: file.type === "" ? undefined : file.type,
+    });
+    return jsonApiResponse(
+      {
+        ok: true,
+        key: stored.key,
+        size: stored.size,
+        contentType: stored.contentType,
+        driver: ctx.storage.driver,
+      },
+      { status: HTTP_STATUS_CREATED },
+      url,
+    );
   } catch (err) {
     console.error(err);
     return jsonApiResponse(
@@ -93,14 +105,4 @@ export async function handleFileUpload(
       url,
     );
   }
-  return jsonApiResponse(
-    {
-      ok: true,
-      storedName: objectName,
-      size: file.size,
-      contentType: file.type === "" ? null : file.type,
-    },
-    { status: HTTP_STATUS_CREATED },
-    url,
-  );
 }

@@ -28,11 +28,13 @@ export async function startServer(
 
   const app = await createApp(options);
   const server = Bun.serve({
-    routes: app.routes,
+    // Upgrade routes are merged last so they keep Bun's `server` argument.
+    routes: { ...app.routes, ...app.websocketRoutes },
     fetch: app.fetchNotFound,
     error: app.onServeError,
     port: options.port ?? resolveListenPort(),
     hostname: options.hostname ?? resolveListenHost(),
+    ...(app.websocket === undefined ? {} : { websocket: app.websocket.handler }),
     ...tlsOpts,
   });
 

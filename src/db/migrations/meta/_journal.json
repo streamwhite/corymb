@@ -1,61 +1,24 @@
 {
-  "version": "7",
-  "dialect": "sqlite",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1777804994851,
-      "tag": "0000_init",
+      "version": "7",
+      "when": 1757289600000,
+      "tag": "0000_auth_schema",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "6",
-      "when": 1777813998874,
-      "tag": "0001_absent_leech",
+      "version": "7",
+      "when": 1757289601000,
+      "tag": "0001_app_schema",
       "breakpoints": true
     },
     {
       "idx": 2,
-      "version": "6",
-      "when": 1779100000000,
-      "tag": "0002_clear_sessions",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1779200000000,
-      "tag": "0003_drop_items",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1779300000000,
-      "tag": "0004_email_auth_tokens",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1779400000000,
-      "tag": "0005_better_auth",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1779500000000,
-      "tag": "0006_add_account_issuer",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "6",
-      "when": 1779600000000,
-      "tag": "0007_passkeys",
+      "version": "7",
+      "when": 1757289602000,
+      "tag": "0002_two_factor",
       "breakpoints": true
     }
   ]

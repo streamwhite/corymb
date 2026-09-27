@@ -1,23 +1,32 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
 import { createMemoryCache } from "@/cache/memory-cache.js";
 import { HEALTH_BASE_PATH } from "@/constants/routes.js";
+import { createRateLimiter } from "@/http/rate-limit.js";
+import { createMemoryEventBus } from "@/realtime/event-bus.js";
 import { startServer } from "@/server/start-server.js";
+import { createMemoryStorage } from "@/storage/memory-storage.js";
+import { createNoopTaskQueue } from "@/tasks/task-queue.js";
+import {
+  createTestDatabase,
+  dropTestDatabase,
+  PG_AVAILABLE,
+} from "./helpers/test-db.js";
 
 const TEST_AUTH_SECRET = "test-better-auth-secret-at-least-32-chars!!";
 
-describe("startServer (library entry)", () => {
+describe.skipIf(!PG_AVAILABLE)("startServer (library entry)", () => {
   it("boots a real server and answers on /health", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "ba-start-server-"));
+    const pgUrl = await createTestDatabase();
     const { server, app, url } = await startServer({
-      databasePath: join(dir, "test.sqlite"),
+      databaseConfig: { pgUrl },
       cache: createMemoryCache(),
+      rateLimiter: createRateLimiter(),
+      taskQueueInstance: createNoopTaskQueue(),
+      storage: createMemoryStorage(),
+      events: createMemoryEventBus(),
       authSecret: TEST_AUTH_SECRET,
       authBaseURL: "http://127.0.0.1",
       authTrustedOrigins: ["http://127.0.0.1", "http://localhost"],
-      events: { publish: async () => {}, subscribe: async () => async () => {}, close: async () => {} },
       port: 0,
       hostname: "127.0.0.1",
     });
@@ -28,6 +37,7 @@ describe("startServer (library entry)", () => {
     } finally {
       await server.stop(true);
       await app.close();
+      await dropTestDatabase(pgUrl);
     }
   });
 });

@@ -1,4 +1,4 @@
-import type { Serve, SQL } from "bun";
+import type { Serve } from "bun";
 import type { BetterAuthInstance } from "@/auth/better-auth.js";
 import {
   withSensitiveOperation,
@@ -19,7 +19,13 @@ import {
   DEFAULT_DOCS_ACCESS_MODE,
   type DocsAccessMode,
 } from "@/constants/docs-access.js";
-import { HEALTH_OK_BODY } from "@/constants/health.js";
+import {
+  HEALTH_OK_BODY,
+  READY_CHECK_CACHE,
+  READY_CHECK_POSTGREST,
+  READY_STATUS_READY,
+  READY_STATUS_UNAVAILABLE,
+} from "@/constants/health.js";
 import {
   HEADER_CONTENT_LENGTH,
   MAX_JSON_BODY_BYTES,
@@ -41,15 +47,25 @@ import { resolveSensitiveVerifyTtlSecondsFromEnv } from "@/constants/sensitive-a
 import {
   DOCS_BASE_PATH,
   HEALTH_BASE_PATH,
+  READY_BASE_PATH,
   REALTIME_EVENTS_BASE_PATH,
   ROBOTS_TXT_PATH,
   UI_AUTH_BASE_PATH,
   UPLOAD_BASE_PATH,
 } from "@/constants/routes.js";
+import type { PostgrestClient } from "@/data/postgrest-client.js";
+import type { RateLimiter } from "@/http/rate-limit.js";
 import type { EventBus } from "@/realtime/event-bus.js";
 import { createRealtimeEventsHandler } from "@/realtime/sse-route.js";
 import { withSecurityHeadersFromRequest } from "@/http/security-headers.js";
 import type { Mailer } from "@/mail/mailer-types.js";
+import {
+  type AuditRecorder,
+  type AuditRule,
+  withAudit,
+} from "@/audit/audit-middleware.js";
+import type { ObjectStorage } from "@/storage/storage-types.js";
+import type { Logger } from "@/observability/logger.js";
 import { apiDocsResponse } from "@/server/api-docs.js";
 import { isDocsRouteAllowed } from "@/server/docs-route.js";
 import { handleFileUpload } from "@/server/upload-route-handler.js";
@@ -61,12 +77,18 @@ const MIME_HTML_UTF8 = "text/html; charset=utf-8" as const;
 const BETTER_AUTH_WILDCARD = `${BETTER_AUTH_BASE_PATH}/*` as const;
 
 export type RouteBundle = {
-  sql: SQL;
   uploadDir: string;
   mailer: Mailer;
   cache: Cache;
   auth: BetterAuthInstance;
   events: EventBus;
+  rateLimiter: RateLimiter;
+  storage: ObjectStorage;
+  idempotency?: IdempotencyGuard;
+  auditRules?: AuditRule[];
+  audit: AuditRecorder;
+  logger: Logger;
+  data?: PostgrestClient;
 };
 
 export type ServeRoutesOptions = {
@@ -100,6 +122,34 @@ function healthHandler(req: Request): Response {
   );
 }
 
+async function checkCache(cache: Cache): Promise<boolean> {
+  return cache
+    .ping()
+    .then(() => true)
+    .catch(() => false);
+}
+
+function createReadinessHandler(bundle: RouteBundle) {
+  return async (req: Request): Promise<Response> => {
+    const checks: Record<string, boolean> = {
+      [READY_CHECK_CACHE]: await checkCache(bundle.cache),
+    };
+    if (bundle.data !== undefined) {
+      checks[READY_CHECK_POSTGREST] = await bundle.data.health();
+    }
+    const ready = Object.values(checks).every(Boolean);
+    const body = {
+      status: ready ? READY_STATUS_READY : READY_STATUS_UNAVAILABLE,
+      checks,
+    };
+    return withSecurityHeadersFromRequest(
+      Response.json(body, { status: ready ? 200 : 503 }),
+      req,
+      "api",
+    );
+  };
+}
+
 function authUiHandler(req: Request): Response {
   return withSecurityHeadersFromRequest(
     new Response(buildAuthPageHtml(), {
@@ -128,9 +178,38 @@ function rejectOversizedJson(req: Request): Response | null {
   );
 }
 
+type IdempotencyGuard = (
+  req: Request,
+  handler: () => Promise<Response>,
+) => Promise<Response>;
+
+function wrapIdempotent(
+  handler: (req: Request) => Promise<Response> | Response,
+  guard: IdempotencyGuard | undefined,
+): (req: Request) => Promise<Response> {
+  if (guard === undefined) {
+    return async (req) => handler(req);
+  }
+  return (req) => guard(req, () => Promise.resolve(handler(req)));
+}
+
+function wrapAudit(
+  handler: (req: Request) => Promise<Response> | Response,
+  bundle: RouteBundle,
+): (req: Request) => Promise<Response> {
+  if (bundle.auditRules === undefined || bundle.auditRules.length === 0) {
+    return async (req) => handler(req);
+  }
+  return withAudit(
+    (req) => Promise.resolve(handler(req)),
+    { record: bundle.audit, rules: bundle.auditRules, logger: bundle.logger },
+  );
+}
+
 function wrapAuthHandler(
   auth: BetterAuthInstance,
   strategy: typeof RATE_LIMIT_STRATEGY_STRICT,
+  limiter: RateLimiter,
 ) {
   return withRateLimit(strategy, async (req: Request) => {
     const oversized = rejectOversizedJson(req);
@@ -139,7 +218,7 @@ function wrapAuthHandler(
     }
     const res = await auth.handler(req);
     return withSecurityHeadersFromRequest(res, req, "api");
-  });
+  }, limiter);
 }
 
 function applyBotDetection(
@@ -168,7 +247,8 @@ export function buildServeRoutes(
   const strict = RATE_LIMIT_STRATEGY_STRICT;
   const standard = RATE_LIMIT_STRATEGY_STANDARD;
   const relaxed = RATE_LIMIT_STRATEGY_RELAXED;
-  const authHandler = wrapAuthHandler(auth, strict);
+  const rateLimiter = bundle.rateLimiter;
+  const authHandler = wrapAuthHandler(auth, strict, rateLimiter);
   const handleRealtimeEvents = createRealtimeEventsHandler({
     auth,
     bus: bundle.events,
@@ -185,23 +265,30 @@ export function buildServeRoutes(
   };
   const guardedRoutes: Serve.Routes<unknown, string> = {
     [DOCS_BASE_PATH]: {
-      GET: withRateLimit(relaxed, buildDocsHandler(docsAccess)),
+      GET: withRateLimit(relaxed, buildDocsHandler(docsAccess), rateLimiter),
     },
     [HEALTH_BASE_PATH]: {
-      GET: withRateLimit(relaxed, healthHandler),
+      GET: withRateLimit(relaxed, healthHandler, rateLimiter),
+    },
+    [READY_BASE_PATH]: {
+      GET: withRateLimit(relaxed, createReadinessHandler(bundle), rateLimiter),
     },
     [UI_AUTH_BASE_PATH]: {
-      GET: withRateLimit(relaxed, authUiHandler),
+      GET: withRateLimit(relaxed, authUiHandler, rateLimiter),
     },
     [AUTH_SESSION_VERIFY_PATH]: {
-      POST: withRateLimit(strict, async (req) => {
-        const oversized = rejectOversizedJson(req);
-        if (oversized !== null) {
-          return withSecurityHeadersFromRequest(oversized, req, "api");
-        }
-        const res = await handleSensitiveVerify(req, sensitiveDeps);
-        return withSecurityHeadersFromRequest(res, req, "api");
-      }),
+      POST: withRateLimit(
+        strict,
+        async (req) => {
+          const oversized = rejectOversizedJson(req);
+          if (oversized !== null) {
+            return withSecurityHeadersFromRequest(oversized, req, "api");
+          }
+          const res = await handleSensitiveVerify(req, sensitiveDeps);
+          return withSecurityHeadersFromRequest(res, req, "api");
+        },
+        rateLimiter,
+      ),
     },
     [AUTH_SESSION_ROTATE_PATH]: {
       POST: withRateLimit(
@@ -214,6 +301,7 @@ export function buildServeRoutes(
           const res = await handleSessionRotate(req, auth);
           return withSecurityHeadersFromRequest(res, req, "api");
         }),
+        rateLimiter,
       ),
     },
     [BETTER_AUTH_BASE_PATH]: {
@@ -225,22 +313,33 @@ export function buildServeRoutes(
       POST: authHandler,
     },
     [UPLOAD_BASE_PATH]: {
-      POST: withRateLimit(standard, (req) =>
-        handleFileUpload(req, { uploadDir }),
+      POST: withRateLimit(
+        standard,
+        wrapAudit(
+          wrapIdempotent(
+            (req) => handleFileUpload(req, { storage: bundle.storage }),
+            bundle.idempotency,
+          ),
+          bundle,
+        ),
+        rateLimiter,
       ),
     },
     [REALTIME_EVENTS_BASE_PATH]: {
-      GET: withRateLimit(relaxed, (req) =>
-        handleRealtimeEvents(req).then((res) =>
-          withSecurityHeadersFromRequest(res, req, "api"),
-        ),
+      GET: withRateLimit(
+        relaxed,
+        (req) =>
+          handleRealtimeEvents(req).then((res) =>
+            withSecurityHeadersFromRequest(res, req, "api"),
+          ),
+        rateLimiter,
       ),
     },
   };
   return {
     ...applyBotDetection(guardedRoutes),
     [ROBOTS_TXT_PATH]: {
-      GET: withRateLimit(relaxed, robotsTxtResponse),
+      GET: withRateLimit(relaxed, robotsTxtResponse, rateLimiter),
     },
   };
 }

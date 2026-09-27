@@ -1,21 +1,14 @@
-import path from "path";
-import {
-  DEFAULT_DATA_DIR,
-  DEFAULT_DB_FILENAME,
-  ENV_SQLITE_PATH,
-  SQLITE_IN_MEMORY,
-} from "@/constants/sqlite.js";
-
 export const ENV_DATABASE_URL = "DATABASE_URL" as const;
 
-export type DbDialect = "sqlite" | "postgres";
+/** Postgres schema that holds Better Auth tables (auth exception, see ADR). */
+export const AUTH_DB_SCHEMA = "auth" as const;
+
+/** Postgres schema exposed through PostgREST for application data. */
+export const APP_DB_SCHEMA = "app" as const;
 
 export type DatabaseConfig = {
-  dialect: DbDialect;
-  /** Postgres connection URL (dialect === "postgres"). */
-  pgUrl?: string;
-  /** SQLite file path or `:memory:` (dialect === "sqlite"). */
-  sqlitePath?: string;
+  /** PostgreSQL connection URL (admin/migration connection). */
+  pgUrl: string;
 };
 
 const POSTGRES_URL_PREFIXES = ["postgres://", "postgresql://"] as const;
@@ -26,32 +19,37 @@ export function isPostgresUrl(url: string): boolean {
 }
 
 /**
- * Dialect resolution: `DATABASE_URL` wins. A postgres URL selects the
- * postgres dialect; any other value is treated as a SQLite path.
- * Without `DATABASE_URL`, falls back to `SQLITE_PATH` (or the default file).
+ * Runtime/admin connection URL. SQLite is no longer supported: the value must
+ * be a PostgreSQL URL. Missing or non-Postgres values throw so misconfiguration
+ * fails fast at startup instead of silently degrading.
  */
+export function resolvePgUrlFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const url = env[ENV_DATABASE_URL]?.trim();
+  if (url === undefined || url.length === 0) {
+    throw new Error(
+      `${ENV_DATABASE_URL} is required (PostgreSQL URL, e.g. postgres://user:pass@host:5432/db)`,
+    );
+  }
+  if (!isPostgresUrl(url)) {
+    throw new Error(
+      `${ENV_DATABASE_URL} must be a PostgreSQL URL (postgres:// or postgresql://); SQLite is no longer supported`,
+    );
+  }
+  return url;
+}
+
 export function resolveDatabaseConfigFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): DatabaseConfig {
-  const url = env[ENV_DATABASE_URL]?.trim();
-  if (url !== undefined && url.length > 0) {
-    if (isPostgresUrl(url)) {
-      return { dialect: "postgres", pgUrl: url };
-    }
-    return { dialect: "sqlite", sqlitePath: url };
-  }
-  return { dialect: "sqlite", sqlitePath: resolveSqlitePathFromEnv(env) };
+  return { pgUrl: resolvePgUrlFromEnv(env) };
 }
 
-/** Matches server defaults: `SQLITE_PATH` env or `<cwd>/data/items.sqlite`. */
-export function resolveSqlitePathFromEnv(
-  env: Record<string, string | undefined> = process.env,
-): string {
-  const envPath = env[ENV_SQLITE_PATH];
-  if (envPath !== undefined && envPath.length > 0) {
-    return envPath;
-  }
-  return path.join(process.cwd(), DEFAULT_DATA_DIR, DEFAULT_DB_FILENAME);
+/** Returns a copy of `pgUrl` whose connections run with `search_path=<schema>`. */
+export function buildSchemaConnectionUrl(pgUrl: string, schema: string): string {
+  const url = new URL(pgUrl);
+  const option = `-c search_path=${schema}`;
+  url.searchParams.set("options", option);
+  return url.toString();
 }
-
-export { SQLITE_IN_MEMORY };

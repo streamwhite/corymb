@@ -21,3 +21,7 @@ export function emailVerifyBody(link: string, ttlSeconds: number): string {
   const hours = ttlHours(ttlSeconds);
   return `Verify your email by opening this link (valid for ${String(hours)} hours):\n\n${link}\n\nIf you did not request this, ignore this email.`;
 }
+
+export function twoFactorBody(otp: string, periodMinutes: number): string {
+  return `Your verification code is: ${otp}\n\nIt expires in ${String(periodMinutes)} minute(s). If you did not request this code, ignore this email.`;
+}

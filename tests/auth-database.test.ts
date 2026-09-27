@@ -1,18 +1,23 @@
 import { describe, expect, it } from "bun:test";
 import { openAuthDatabase } from "@/auth/auth-database.js";
-import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
+import { scheduleTestDispose } from "./dispose-guard.js";
+import {
+  createTestDatabase,
+  dropTestDatabase,
+  PG_AVAILABLE,
+} from "./helpers/test-db.js";
 
-describe("openAuthDatabase", () => {
-  it("opens an in-memory sqlite auth database", async () => {
-    const bundle = openAuthDatabase({
-      dialect: "sqlite",
-      sqlitePath: SQLITE_IN_MEMORY,
+describe.skipIf(!PG_AVAILABLE)("openAuthDatabase", () => {
+  it("opens a Postgres pool scoped to the auth schema", async () => {
+    const pgUrl = await createTestDatabase();
+    const bundle = openAuthDatabase({ pgUrl });
+    scheduleTestDispose(async () => {
+      await bundle.close();
+      await dropTestDatabase(pgUrl);
     });
-    expect(bundle.database).toBeDefined();
-    await bundle.close();
-  });
-
-  it("rejects postgres without a connection URL", () => {
-    expect(() => openAuthDatabase({ dialect: "postgres" })).toThrow();
+    const result = await bundle.database.query<{ current_schema: string }>(
+      "SELECT current_schema() AS current_schema",
+    );
+    expect(result.rows[0]?.current_schema).toBe("auth");
   });
 });

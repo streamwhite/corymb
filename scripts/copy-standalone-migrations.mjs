@@ -2,7 +2,7 @@ import { cpSync, mkdirSync } from "fs";
 import path from "path";
 
 const DIR_DB = "db";
-const FOLDERS = ["migrations", "migrations-pg"];
+const FOLDERS = ["migrations"];
 
 const ROOT = path.join(import.meta.dir, "..");
 

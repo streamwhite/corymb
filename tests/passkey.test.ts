@@ -8,17 +8,19 @@ import {
 } from "@/constants/better-auth.js";
 import { createMemoryApp } from "./helpers/app-memory.js";
 import { signupUser } from "./helpers/auth-flow.js";
+import { queryPg } from "./helpers/test-db.js";
 
 const validPassword = "x".repeat(MIN_PASSWORD_LENGTH);
 
 describe("passkey auth", () => {
   it("passkey plugin is wired and table exists", async () => {
-    const { sql } = await createMemoryApp();
-    const rows = (await sql.unsafe(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='passkey'",
-    )) as { name: string }[];
+    const { pgUrl } = await createMemoryApp();
+    const rows = await queryPg<{ table_name: string }>(
+      pgUrl,
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'passkey'",
+    );
     expect(rows.length).toBe(1);
-    expect(rows[0].name).toBe("passkey");
+    expect(rows[0]?.table_name).toBe("passkey");
   });
 
   it("GET /passkey/list-user-passkeys unauthenticated => 401", async () => {

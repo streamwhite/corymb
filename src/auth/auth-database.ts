@@ -1,29 +1,26 @@
-import { Database } from "bun:sqlite";
 import { Pool } from "pg";
-import type { DatabaseConfig } from "@/constants/database.js";
-import { SQLITE_IN_MEMORY } from "@/constants/sqlite.js";
+import {
+  AUTH_DB_SCHEMA,
+  buildSchemaConnectionUrl,
+  type DatabaseConfig,
+} from "@/constants/database.js";
 
-export type AuthDatabaseDriver = Database | Pool;
+/**
+ * Better Auth persistence driver. Auth tables live in the dedicated `auth`
+ * schema (explicit auth exception; see docs/adr/0001-postgrest-auth-exception.md).
+ * Application data is served through PostgREST instead.
+ */
+export type AuthDatabaseDriver = Pool;
 
 export type AuthDatabaseBundle = {
   database: AuthDatabaseDriver;
   close: () => Promise<void>;
 };
 
-export function openAuthSqlite(databasePath: string): AuthDatabaseBundle {
-  const database = new Database(databasePath, { create: true });
-  database.exec("PRAGMA journal_mode = WAL;");
-  database.exec("PRAGMA foreign_keys = ON;");
-  return {
-    database,
-    close: async () => {
-      database.close();
-    },
-  };
-}
-
-export function openAuthPostgres(pgUrl: string): AuthDatabaseBundle {
-  const pool = new Pool({ connectionString: pgUrl });
+export function openAuthDatabase(config: DatabaseConfig): AuthDatabaseBundle {
+  const pool = new Pool({
+    connectionString: buildSchemaConnectionUrl(config.pgUrl, AUTH_DB_SCHEMA),
+  });
   pool.on("error", (err) => {
     console.error("Postgres pool error (auth):", err);
   });
@@ -33,14 +30,4 @@ export function openAuthPostgres(pgUrl: string): AuthDatabaseBundle {
       await pool.end();
     },
   };
-}
-
-export function openAuthDatabase(config: DatabaseConfig): AuthDatabaseBundle {
-  if (config.dialect === "postgres") {
-    if (config.pgUrl === undefined) {
-      throw new Error("Postgres dialect requires a connection URL");
-    }
-    return openAuthPostgres(config.pgUrl);
-  }
-  return openAuthSqlite(config.sqlitePath ?? SQLITE_IN_MEMORY);
 }

@@ -16,5 +16,7 @@ export const MAIL_SUBJECT_PASSWORD_RESET = "Reset your password" as const;
 
 export const MAIL_SUBJECT_VERIFY_EMAIL = "Verify your email" as const;
 
+export const MAIL_SUBJECT_TWO_FACTOR_OTP = "Your verification code" as const;
+
 /** Querystring key carrying single-use tokens in user-clickable links. */
 export const MAIL_LINK_TOKEN_PARAM = "token" as const;

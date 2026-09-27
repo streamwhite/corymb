@@ -7,6 +7,7 @@ const JOURNAL_REL = ["meta", "_journal.json"] as const;
 const STMT_BREAK = "--> statement-breakpoint" as const;
 
 export type MigrationBundle = {
+  tag: string;
   sql: string[];
   breakpoints: boolean;
   folderMillis: number;
@@ -44,6 +45,7 @@ export function readMigrationFiles(
     const query = readFileSync(migrationPath, "utf8");
     const sql = query.split(STMT_BREAK).map((s) => s.trim());
     out.push({
+      tag: entry.tag,
       sql,
       breakpoints: entry.breakpoints,
       folderMillis: entry.when,

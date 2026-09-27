@@ -15,8 +15,11 @@ describe("initProject scaffolder", () => {
     const result = initProject({ targetDir: dir });
 
     expect(result.filesWritten).toContain("package.json");
+    expect(result.filesWritten).toContain("tsconfig.json");
+    expect(result.filesWritten).toContain(".gitignore");
     expect(result.filesWritten).toContain(".env");
     expect(result.filesWritten).toContain("src/index.ts");
+    expect(result.filesWritten).toContain("postgrest/postgrest.conf");
     expect(result.filesWritten).toContain("README.md");
 
     const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
@@ -29,7 +32,18 @@ describe("initProject scaffolder", () => {
     const index = readFileSync(join(dir, "src/index.ts"), "utf8");
     expect(index).toContain("startServer");
     expect(index).toContain("publishRealtimeEvent");
-    expect(index).toContain("/api/hello");
+    expect(index).toContain("/api/todos");
+    expect(index).toContain("ValidationError");
+    expect(index).toContain("auditSinks");
+    expect(index).toContain("tasks.run");
+    expect(index).toContain("withValidation");
+    expect(index).toContain("websocket");
+    expect(index).toContain("middleware");
+
+    const env = readFileSync(join(dir, ".env.example"), "utf8");
+    expect(env).toContain("POSTGREST_URL");
+    expect(env).toContain("DATABASE_URL");
+    expect(env).not.toContain("SQLITE_PATH");
     expect(existsSync(join(dir, ".env.example"))).toBe(true);
   });
 

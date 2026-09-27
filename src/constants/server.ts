@@ -4,7 +4,18 @@ export const ENV_PORT_KEY = "PORT" as const;
 
 export const ENV_HOST_KEY = "HOST" as const;
 
+export const ENV_SERVICE_NAME = "SERVICE_NAME" as const;
+
+export const DEFAULT_SERVICE_NAME = "backend" as const;
+
 export const DEFAULT_HTTP_PORT = 3000;
+
+export function resolveServiceNameFromEnv(): string {
+  const fromEnv = process.env[ENV_SERVICE_NAME];
+  return fromEnv !== undefined && fromEnv.length > 0
+    ? fromEnv
+    : DEFAULT_SERVICE_NAME;
+}
 
 const RADIX_DECIMAL = 10;
 

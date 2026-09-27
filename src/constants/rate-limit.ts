@@ -30,3 +30,15 @@ export const RATE_LIMIT_ENV_BY_STRATEGY: Record<RateLimitStrategy, string> = {
   [RATE_LIMIT_STRATEGY_STANDARD]: ENV_RATE_LIMIT_STANDARD_MAX,
   [RATE_LIMIT_STRATEGY_RELAXED]: ENV_RATE_LIMIT_RELAXED_MAX,
 };
+
+export const ENV_RATE_LIMIT_KEY_PREFIX = "RATE_LIMIT_KEY_PREFIX" as const;
+
+export const DEFAULT_RATE_LIMIT_KEY_PREFIX = "rl" as const;
+
+/** Redis key namespace for rate-limit counters (shared Redis across apps). */
+export function resolveRateLimitKeyPrefixFromEnv(): string {
+  const fromEnv = process.env[ENV_RATE_LIMIT_KEY_PREFIX];
+  return fromEnv !== undefined && fromEnv.length > 0
+    ? fromEnv
+    : DEFAULT_RATE_LIMIT_KEY_PREFIX;
+}

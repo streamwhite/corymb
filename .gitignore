@@ -13,4 +13,8 @@ coverage/
 /db/migrations/
 /myapp
 
+# Exported PostgREST JWKS (run `jwks` to regenerate) and local PostgREST config
+/postgrest/jwks.json
+/postgrest/postgrest.conf
+
 todos.ts

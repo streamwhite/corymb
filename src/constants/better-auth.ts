@@ -37,6 +37,17 @@ export const DEFAULT_SESSION_FRESH_AGE_SECONDS = SECONDS_PER_HOUR;
 
 export const BETTER_AUTH_BASE_PATH = "/api/auth" as const;
 
+/**
+ * JWT claim PostgREST reads to `SET ROLE`. Better Auth-signed access tokens
+ * carry this claim so RLS policies apply to authenticated requests.
+ */
+export const AUTH_JWT_ROLE_CLAIM = "role" as const;
+
+export const AUTH_JWT_ROLE_AUTHENTICATED = "authenticated" as const;
+
+/** Better Auth endpoint exposing the public JWKS consumed by PostgREST. */
+export const AUTH_JWKS_PATH = `${BETTER_AUTH_BASE_PATH}/jwks` as const;
+
 export const AUTH_SESSION_ROTATE_PATH =
   `${BETTER_AUTH_BASE_PATH}/session/rotate` as const;
 

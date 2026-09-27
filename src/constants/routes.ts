@@ -2,6 +2,11 @@ export const HEALTH_SEGMENT = "health" as const;
 
 export const HEALTH_BASE_PATH = `/${HEALTH_SEGMENT}` as const;
 
+export const READY_SEGMENT = "ready" as const;
+
+/** Readiness probe: verifies downstream dependencies (cache, PostgREST). */
+export const READY_BASE_PATH = `/${READY_SEGMENT}` as const;
+
 export const UI_SEGMENT = "ui" as const;
 
 export const UI_AUTH_BASE_PATH = `/${UI_SEGMENT}` as const;

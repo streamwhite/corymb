@@ -9,6 +9,10 @@ export const HEADER_USER_AGENT = "User-Agent" as const;
 
 export const HEADER_RETRY_AFTER = "Retry-After" as const;
 
+export const HEADER_COOKIE = "Cookie" as const;
+
+export const HEADER_SET_COOKIE = "Set-Cookie" as const;
+
 export const HEADER_X_CONTENT_TYPE_OPTIONS = "X-Content-Type-Options" as const;
 
 export const X_CONTENT_TYPE_OPTIONS_NOSNIFF = "nosniff" as const;

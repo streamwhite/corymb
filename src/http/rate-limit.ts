@@ -1,3 +1,5 @@
+import { RedisClient } from "bun";
+import { RateLimiterMemory, type RateLimiterRes } from "rate-limiter-flexible";
 import {
   RATE_LIMIT_DEFAULT_MAX,
   RATE_LIMIT_ENV_BY_STRATEGY,
@@ -7,77 +9,147 @@ import {
   RATE_LIMIT_WINDOW_MS,
   type RateLimitStrategy,
 } from "@/constants/rate-limit.js";
-
-const RADIX_DECIMAL = 10 as const;
+import { consumeRedisCounter } from "@/http/rate-limit-redis.js";
 
 const HEADER_X_FORWARDED_FOR = "x-forwarded-for" as const;
-
 const HEADER_X_REAL_IP = "x-real-ip" as const;
-
-const RATE_UNKNOWN_CLIENT_KEY = "unknown" as const;
-
 const XFF_SEPARATOR = "," as const;
-
+const RATE_UNKNOWN_CLIENT_KEY = "unknown" as const;
 const MS_PER_SECOND = 1000 as const;
+const RATE_LIMIT_KEY_PREFIX = "rl" as const;
 
-type WindowBucket = { windowStart: number; count: number };
+/** Cost of a single request against the fixed window. */
+const RATE_LIMIT_POINTS_PER_REQUEST = 1 as const;
 
-type StrategyState = {
-  buckets: Map<string, WindowBucket>;
-  testOverride?: number;
+/** Fixed window length in seconds, matching `RATE_LIMIT_WINDOW_MS`. */
+const DURATION_SECONDS = Math.round(RATE_LIMIT_WINDOW_MS / MS_PER_SECOND);
+
+export type RateLimitResult =
+  | { ok: true }
+  | { ok: false; retryAfterSec: number };
+
+type StrategyLimiter = (key: string) => Promise<RateLimitResult>;
+
+export type RateLimitOptions = {
+  /** Redis URL; when set, limits are shared atomically across replicas. */
+  redisUrl?: string;
+  /** Reuse an existing Bun Redis client (e.g. the cache client). */
+  client?: RedisClient;
+  /** Explicit per-strategy maxima (wins over env/defaults). */
+  max?: Partial<Record<RateLimitStrategy, number>>;
+  /** Per-strategy test override; when provided, ignores `max`/env. */
+  overrideMax?: Partial<Record<RateLimitStrategy, number>>;
+  /** Namespace for Redis keys (multiple apps on one Redis). */
+  keyPrefix?: string;
 };
 
-function emptyState(): StrategyState {
-  return { buckets: new Map() };
-}
-
-const strategies: Record<RateLimitStrategy, StrategyState> = {
-  [RATE_LIMIT_STRATEGY_STRICT]: emptyState(),
-  [RATE_LIMIT_STRATEGY_STANDARD]: emptyState(),
-  [RATE_LIMIT_STRATEGY_RELAXED]: emptyState(),
+export type RateLimiter = {
+  check: (
+    strategy: RateLimitStrategy,
+    clientKey: string,
+  ) => Promise<RateLimitResult>;
+  close: () => void;
 };
-
-export function setRateLimitMaxOverrideForTests(
-  strategy: RateLimitStrategy,
-  max: number | undefined,
-): void {
-  strategies[strategy].testOverride = max;
-}
-
-/** Test-only: clear all per-strategy bucket state + overrides between tests. */
-export function resetRateLimitStateForTests(): void {
-  for (const strategy of Object.keys(strategies) as RateLimitStrategy[]) {
-    strategies[strategy].buckets.clear();
-    strategies[strategy].testOverride = undefined;
-  }
-}
 
 function parsePositiveInt(raw: string | undefined): number | undefined {
   if (raw === undefined || raw.length === 0) {
     return undefined;
   }
-  const n = Number.parseInt(raw, RADIX_DECIMAL);
+  const n = Number.parseInt(raw, 10);
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-function resolveStrategyMax(strategy: RateLimitStrategy): number {
-  const state = strategies[strategy];
-  if (state.testOverride !== undefined) {
-    return state.testOverride;
-  }
-  const fromEnv = parsePositiveInt(
-    process.env[RATE_LIMIT_ENV_BY_STRATEGY[strategy]],
+function resolveStrategyMax(
+  strategy: RateLimitStrategy,
+  options: RateLimitOptions,
+): number {
+  return (
+    options.overrideMax?.[strategy] ??
+    options.max?.[strategy] ??
+    parsePositiveInt(process.env[RATE_LIMIT_ENV_BY_STRATEGY[strategy]]) ??
+    RATE_LIMIT_DEFAULT_MAX[strategy]
   );
-  return fromEnv ?? RATE_LIMIT_DEFAULT_MAX[strategy];
 }
 
-function pruneExpiredBuckets(state: StrategyState, now: number): void {
-  const cutoff = now - 2 * RATE_LIMIT_WINDOW_MS;
-  for (const [key, b] of state.buckets) {
-    if (b.windowStart < cutoff) {
-      state.buckets.delete(key);
+function retryAfterFrom(msBeforeNext: number): number {
+  return Math.max(1, Math.ceil(msBeforeNext / MS_PER_SECOND));
+}
+
+function toResult(res: RateLimiterRes): RateLimitResult {
+  return { ok: true };
+}
+
+/** In-process limiter (single replica / tests) using the package's memory store. */
+function createMemoryLimiter(
+  strategy: RateLimitStrategy,
+  options: RateLimitOptions,
+): StrategyLimiter {
+  const limiter = new RateLimiterMemory({
+    keyPrefix: `${options.keyPrefix ?? RATE_LIMIT_KEY_PREFIX}:${strategy}`,
+    points: resolveStrategyMax(strategy, options),
+    duration: DURATION_SECONDS,
+  });
+  return async (key) => {
+    try {
+      return toResult(await limiter.consume(key));
+    } catch (res) {
+      if (res instanceof Error) throw res;
+      return {
+        ok: false,
+        retryAfterSec: retryAfterFrom((res as RateLimiterRes).msBeforeNext),
+      };
     }
-  }
+  };
+}
+
+/** Redis-backed limiter: atomic fixed-window counters shared across replicas. */
+function createRedisLimiter(
+  strategy: RateLimitStrategy,
+  options: RateLimitOptions,
+  client: RedisClient,
+): StrategyLimiter {
+  const prefix = `${options.keyPrefix ?? RATE_LIMIT_KEY_PREFIX}:${strategy}`;
+  const max = resolveStrategyMax(strategy, options);
+  return async (key) => {
+    const [consumed, ttlMs] = await consumeRedisCounter(
+      client,
+      `${prefix}:${key}`,
+      RATE_LIMIT_POINTS_PER_REQUEST,
+      DURATION_SECONDS,
+    );
+    if (consumed <= max) {
+      return { ok: true };
+    }
+    return { ok: false, retryAfterSec: retryAfterFrom(ttlMs) };
+  };
+}
+
+/**
+ * Builds the per-strategy limiters with `rate-limiter-flexible`. A Redis client
+ * makes counters atomic and shared; without one an in-memory limiter keeps
+ * single-instance deploys and tests working.
+ */
+export function createRateLimiter(options: RateLimitOptions = {}): RateLimiter {
+  const ownedClient =
+    options.client === undefined && options.redisUrl !== undefined
+      ? new RedisClient(options.redisUrl, { autoReconnect: true })
+      : undefined;
+  const client = options.client ?? ownedClient;
+  const make = (strategy: RateLimitStrategy): StrategyLimiter =>
+    client === undefined
+      ? createMemoryLimiter(strategy, options)
+      : createRedisLimiter(strategy, options, client);
+
+  const limiters: Record<RateLimitStrategy, StrategyLimiter> = {
+    [RATE_LIMIT_STRATEGY_STRICT]: make(RATE_LIMIT_STRATEGY_STRICT),
+    [RATE_LIMIT_STRATEGY_STANDARD]: make(RATE_LIMIT_STRATEGY_STANDARD),
+    [RATE_LIMIT_STRATEGY_RELAXED]: make(RATE_LIMIT_STRATEGY_RELAXED),
+  };
+
+  return {
+    check: (strategy, clientKey) => limiters[strategy](clientKey),
+    close: () => ownedClient?.close(),
+  };
 }
 
 export function rateLimitClientKey(headers: Headers): string {
@@ -95,28 +167,3 @@ export function rateLimitClientKey(headers: Headers): string {
   return RATE_UNKNOWN_CLIENT_KEY;
 }
 
-export type RateLimitResult =
-  | { ok: true }
-  | { ok: false; retryAfterSec: number };
-
-export function takeRateLimitSlot(
-  strategy: RateLimitStrategy,
-  clientKey: string,
-): RateLimitResult {
-  const state = strategies[strategy];
-  const now = Date.now();
-  pruneExpiredBuckets(state, now);
-  const max = resolveStrategyMax(strategy);
-  const b = state.buckets.get(clientKey);
-  if (b === undefined || now - b.windowStart >= RATE_LIMIT_WINDOW_MS) {
-    state.buckets.set(clientKey, { windowStart: now, count: 1 });
-    return { ok: true };
-  }
-  if (b.count < max) {
-    b.count += 1;
-    return { ok: true };
-  }
-  const retryAfterMs = b.windowStart + RATE_LIMIT_WINDOW_MS - now;
-  const retryAfterSec = Math.max(1, Math.ceil(retryAfterMs / MS_PER_SECOND));
-  return { ok: false, retryAfterSec };
-}
