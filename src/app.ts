@@ -22,6 +22,51 @@ import {
   type CompressionOptions,
 } from "@/middleware/builtin/compression.js";
 import {
+  withMaxUrlLength,
+  withRequestTimeout,
+} from "@/middleware/builtin/limits.js";
+import { withCsrf, type CsrfOptions } from "@/http/csrf.js";
+import {
+  createBruteForceGuard,
+  withBruteForce,
+  type BruteForceOptions,
+} from "@/security/brute-force.js";
+import {
+  resolveMaxUrlLengthFromEnv,
+  resolveRequestTimeoutMsFromEnv,
+} from "@/constants/security.js";
+import {
+  createEnvFeatureFlags,
+  createCachedFeatureFlags,
+  type FeatureFlags,
+} from "@/flags/feature-flags.js";
+import {
+  resolveFeatureFlagCacheTtlFromEnv,
+  resolveFeatureFlagsRemoteFromEnv,
+} from "@/constants/flags.js";
+import {
+  createBilling,
+  createMemoryBillingProvider,
+} from "@/billing/billing.js";
+import type { Billing, BillingProvider } from "@/billing/billing-types.js";
+import {
+  buildMcpRoutes,
+  createMcpHandler,
+  type McpOptions,
+} from "@/mcp/mcp-server.js";
+import {
+  createWebhookDispatcher,
+  type WebhookDispatcherOptions,
+} from "@/webhooks/webhook-dispatcher.js";
+import type { WebhookDispatcher } from "@/webhooks/webhook-types.js";
+import {
+  DEFAULT_MCP_VERSION,
+  ENV_MCP_ENABLED,
+  ENV_MCP_TOKEN,
+  MCP_BASE_PATH,
+  resolveMcpConfigFromEnv,
+} from "@/constants/mcp.js";
+import {
   createWebSocketServer,
   createWebSocketUpgrade,
   type UpgradeCapableServer,
@@ -133,6 +178,22 @@ export type CreateAppOptions = {
   middleware?: Middleware[];
   /** Compression middleware config; `false` disables it. */
   compression?: CompressionOptions | false;
+  /** Request timeout middleware (ms); `false` disables it. Defaults to env. */
+  requestTimeoutMs?: number | false;
+  /** Max request URL length (chars); `false` disables it. Defaults to env. */
+  maxUrlLength?: number | false;
+  /** CSRF double-submit protection; enabled when provided. */
+  csrf?: CsrfOptions | false;
+  /** Brute-force lockout for credential routes; enabled when provided. */
+  bruteForce?: BruteForceOptions | false;
+  /** Feature flag provider; defaults to env flags (cache-backed when remote). */
+  flags?: FeatureFlags;
+  /** Billing provider/facade; `false` disables it. Defaults to in-memory. */
+  billing?: Billing | BillingProvider | false;
+  /** MCP endpoint; enabled when provided or when `MCP_ENABLED` is set. */
+  mcp?: McpOptions | false;
+  /** Outbound webhook dispatcher; enabled when provided. */
+  webhooks?: WebhookDispatcher | WebhookDispatcherOptions | false;
   /** WebSocket endpoints exposed by the server. */
   websocket?: WebSocketEndpoint[];
   /** Extra `Bun.serve` routes merged after built-ins (consumer paths win on conflict). */
@@ -153,6 +214,12 @@ export type AppInstance = {
   tasks: import("@/tasks/task-types.js").TaskQueue;
   /** Object storage (S3 / filesystem / memory). */
   storage: ObjectStorage;
+  /** Feature flag provider (env-backed by default). */
+  flags: FeatureFlags;
+  /** Billing facade, when enabled. */
+  billing?: Billing;
+  /** Outbound webhook dispatcher, when enabled. */
+  webhooks?: WebhookDispatcher;
   /** WebSocket server (handler + endpoint lookup), when endpoints exist. */
   websocket?: WebSocketServer;
   /** Raw upgrade routes (need `Bun.serve`'s `server` arg; not middleware-wrapped). */
@@ -175,6 +242,16 @@ function fetchNotFound(req: Request): Response {
     { status: HTTP_STATUS_NOT_FOUND },
   );
   return withSecurityHeadersFromRequest(res, req, "api");
+}
+
+function limitMiddleware(
+  maxUrlLength: number | null,
+  requestTimeoutMs: number | null,
+): Middleware[] {
+  return [
+    ...(maxUrlLength === null ? [] : [withMaxUrlLength(maxUrlLength)]),
+    ...(requestTimeoutMs === null ? [] : [withRequestTimeout(requestTimeoutMs)]),
+  ];
 }
 
 function onServeError(err: unknown): Response {
@@ -240,7 +317,47 @@ export async function createApp(
   const storage =
     options?.storage ??
     createObjectStorage({ rootDir: uploadDir, ...options?.storageOptions });
+  const bruteForceOption = options?.bruteForce;
+  const bruteForceConfig =
+    bruteForceOption === false ? undefined : bruteForceOption;
+  const bruteForceGuard =
+    bruteForceConfig === undefined
+      ? undefined
+      : createBruteForceGuard({
+          redisUrl: options?.redisUrl ?? resolveRedisUrlFromEnv(),
+          ...bruteForceConfig,
+        });
   const idempotency = buildIdempotencyGuard(options, cacheBundle.cache, logger);
+  const flags =
+    options?.flags ??
+    (resolveFeatureFlagsRemoteFromEnv()
+      ? createCachedFeatureFlags({
+          cache: cacheBundle.cache,
+          source: createEnvFeatureFlags(),
+          ttlSeconds: resolveFeatureFlagCacheTtlFromEnv(),
+        })
+      : createEnvFeatureFlags());
+  const billing = resolveBilling(options?.billing);
+  const webhooks = resolveWebhooks(options?.webhooks);
+  const mcpConfig = resolveMcpOptions(options);
+  const mcpRoutes: Serve.Routes<unknown, string> =
+    mcpConfig === undefined
+      ? {}
+      : (buildMcpRoutes(
+          MCP_BASE_PATH,
+          createMcpHandler(
+            {
+              name: resolveServiceNameFromEnv(),
+              version: DEFAULT_MCP_VERSION,
+              environment: process.env.NODE_ENV ?? "production",
+              logger,
+              health: () => buildHealthChecks(cacheBundle.cache, data),
+              flags,
+              taskCounts: () => tasks.counts(),
+            },
+            mcpConfig,
+          ),
+        ) as unknown as Serve.Routes<unknown, string>);
   const builtInRoutes = buildServeRoutes(
     {
       uploadDir,
@@ -269,19 +386,36 @@ export async function createApp(
     options?.compression === false
       ? []
       : [withCompression(options?.compression ?? {})];
+  const timeoutOption = options?.requestTimeoutMs;
+  const requestTimeoutMs =
+    timeoutOption === false
+      ? null
+      : (timeoutOption ?? resolveRequestTimeoutMsFromEnv());
+  const urlLengthOption = options?.maxUrlLength;
+  const maxUrlLength =
+    urlLengthOption === false
+      ? null
+      : (urlLengthOption ?? resolveMaxUrlLengthFromEnv());
+  const csrfOption = options?.csrf;
+  const csrfConfig = csrfOption === false ? undefined : csrfOption;
   const middleware = {
     cors: options?.cors ?? resolveCorsFromEnv(),
     logger,
     middleware: [
       withRequestId(),
       withErrorHandler(),
+      ...limitMiddleware(maxUrlLength, requestTimeoutMs),
       ...compression,
+      ...(csrfConfig === undefined ? [] : [withCsrf(csrfConfig)]),
+      ...(bruteForceGuard === undefined || bruteForceConfig === undefined
+        ? []
+        : [withBruteForce(bruteForceGuard, bruteForceConfig)]),
       ...(options?.middleware ?? []),
       withAccessLog(),
     ],
   };
   const routes = applyRouteMiddleware(
-    { ...builtInRoutes, ...(options?.routes ?? {}) },
+    { ...builtInRoutes, ...mcpRoutes, ...(options?.routes ?? {}) },
     middleware,
     createContext,
   );
@@ -303,6 +437,9 @@ export async function createApp(
     audit: auditLogger.record,
     tasks,
     storage,
+    flags,
+    ...(billing === undefined ? {} : { billing }),
+    ...(webhooks === undefined ? {} : { webhooks }),
     websocket,
     websocketRoutes,
     createContext,
@@ -314,6 +451,7 @@ export async function createApp(
       closed = true;
       await tasks.close();
       rateLimiter.close();
+      bruteForceGuard?.close();
       if (eventsBundle.owned) {
         await eventsBundle.bus.close().catch((err: unknown) =>
           logger.error("events close failed", {
@@ -376,6 +514,62 @@ function buildIdempotencyGuard(
     protectedPaths: paths,
     ttlSeconds: options?.idempotencyTtlSeconds,
   });
+}
+
+function resolveBilling(
+  option: Billing | BillingProvider | false | undefined,
+): Billing | undefined {
+  if (option === false) {
+    return undefined;
+  }
+  if (option === undefined) {
+    return createBilling(createMemoryBillingProvider());
+  }
+  return "hasFeature" in option ? option : createBilling(option);
+}
+
+async function buildHealthChecks(
+  cache: Cache,
+  data?: PostgrestClient,
+): Promise<Record<string, boolean>> {
+  const checks: Record<string, boolean> = {
+    cache: await cache
+      .ping()
+      .then(() => true)
+      .catch(() => false),
+  };
+  if (data !== undefined) {
+    checks.postgrest = await data.health();
+  }
+  return checks;
+}
+
+function resolveWebhooks(
+  option: WebhookDispatcher | WebhookDispatcherOptions | false | undefined,
+): WebhookDispatcher | undefined {
+  if (option === false || option === undefined) {
+    return undefined;
+  }
+  return "dispatch" in option ? option : createWebhookDispatcher(option);
+}
+
+function resolveMcpOptions(
+  options?: CreateAppOptions,
+): McpOptions | undefined {
+  if (options?.mcp === false) {
+    return undefined;
+  }
+  if (options?.mcp !== undefined) {
+    return options.mcp;
+  }
+  const config = resolveMcpConfigFromEnv();
+  if (!config.enabled) {
+    return undefined;
+  }
+  if (config.token === undefined) {
+    throw new Error(`${ENV_MCP_ENABLED} requires ${ENV_MCP_TOKEN} to be set`);
+  }
+  return { token: config.token, name: config.name, version: config.version };
 }
 
 function shouldCreateDataClient(options?: CreateAppOptions): boolean {

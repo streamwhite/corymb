@@ -28,12 +28,18 @@ export type SsrfReason =
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 const PRIVATE_V4_PATTERN =
-  /^(10\.|127\.|192\.168\.|169\.254\.|0\.)|^172\.(1[6-9]|2\d|3[01])\./;
+  /^(10\.|192\.168\.|169\.254\.|0\.)|^172\.(1[6-9]|2\d|3[01])\./;
+
+function isLoopbackHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return (
+    LOOPBACK_HOSTS.has(host) || host.endsWith(".localhost") || host.startsWith("127.")
+  );
+}
 
 function isPrivateHostname(hostname: string): boolean {
   const host = hostname.toLowerCase();
-  if (LOOPBACK_HOSTS.has(host)) return true;
-  if (host.endsWith(".localhost") || host.endsWith(".internal")) return true;
+  if (host.endsWith(".internal")) return true;
   return PRIVATE_V4_PATTERN.test(host);
 }
 
@@ -68,6 +74,9 @@ export function checkOutboundUrl(
   }
   if (!hostAllowed(url.hostname, options.allowedHosts ?? [])) {
     return { ok: false, reason: SSRF_REASON_HOST };
+  }
+  if (!options.allowLoopback && isLoopbackHostname(url.hostname)) {
+    return { ok: false, reason: SSRF_REASON_PRIVATE };
   }
   if (!options.allowPrivate && isPrivateHostname(url.hostname)) {
     return { ok: false, reason: SSRF_REASON_PRIVATE };

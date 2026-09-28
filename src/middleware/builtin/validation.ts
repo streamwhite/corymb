@@ -2,11 +2,19 @@ import { ValidationError } from "@/errors/app-error.js";
 import { readJsonUnknown } from "@/http/json-body.js";
 import type { Middleware } from "@/middleware/middleware-types.js";
 import type { MiddlewareContext } from "@/middleware/middleware-types.js";
+import { sanitizeStrings } from "@/security/sanitize.js";
 
 /** A validator parses/normalizes raw input or throws to reject it. */
 export type Validator<T> = (input: unknown) => T;
 
 export type ValidationTarget = "json" | "query";
+
+export type ValidationOptions = {
+  target?: ValidationTarget;
+  stateKey?: string;
+  /** Strip HTML tags/control chars from string fields before validating. */
+  sanitize?: boolean;
+};
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -57,12 +65,13 @@ async function readInput(ctx: MiddlewareContext, target: ValidationTarget): Prom
  */
 export function withValidation<T>(
   validator: Validator<T>,
-  options?: { target?: ValidationTarget; stateKey?: string },
+  options: ValidationOptions = {},
 ): Middleware {
-  const target = options?.target ?? "json";
-  const stateKey = options?.stateKey ?? "input";
+  const target = options.target ?? "json";
+  const stateKey = options.stateKey ?? "input";
   return async (ctx, next) => {
-    const input = await readInput(ctx, target);
+    const raw = await readInput(ctx, target);
+    const input = options.sanitize === true ? sanitizeStrings(raw) : raw;
     const result = validate(validator, input);
     if (!result.ok) {
       throw result.error;

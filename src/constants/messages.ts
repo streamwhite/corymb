@@ -75,3 +75,17 @@ export const MSG_PASSWORD_NOT_SET =
   "Account has no password; sign in again to continue" as const;
 
 export const MSG_BOT_BLOCKED = "Automated client blocked" as const;
+
+export const MSG_REQUEST_TIMEOUT = "Request timed out" as const;
+
+export const MSG_URI_TOO_LONG = "Request URL is too long" as const;
+
+export const MSG_CSRF_INVALID =
+  "Invalid or missing CSRF token" as const;
+
+export const MSG_BRUTE_FORCE_LOCKED =
+  "Too many failed attempts; try again later" as const;
+
+export const MSG_SSRF_BLOCKED = "Outbound URL is not allowed" as const;
+
+export const MSG_SSRF_INVALID_URL = "Outbound URL is invalid" as const;

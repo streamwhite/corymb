@@ -1,3 +1,5 @@
+import { parsePositiveIntEnv } from "@/constants/env-int.js";
+
 export const HEADER_X_REQUESTED_WITH = "X-Requested-With" as const;
 
 export const HEADER_ORIGIN = "Origin" as const;
@@ -42,3 +44,52 @@ export const ENV_BRUTE_FORCE_MAX_ATTEMPTS = "BRUTE_FORCE_MAX_ATTEMPTS" as const;
 
 export const ENV_BRUTE_FORCE_WINDOW_SECONDS =
   "BRUTE_FORCE_WINDOW_SECONDS" as const;
+
+export const ENV_BRUTE_FORCE_LOCK_SECONDS = "BRUTE_FORCE_LOCK_SECONDS" as const;
+
+export const DEFAULT_BRUTE_FORCE_KEY_PREFIX = "bf" as const;
+
+/** Resolves the request timeout from `REQUEST_TIMEOUT_MS` or the default. */
+export function resolveRequestTimeoutMsFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  return parsePositiveIntEnv(env[ENV_REQUEST_TIMEOUT_MS], DEFAULT_REQUEST_TIMEOUT_MS);
+}
+
+/** Resolves the max request URL length from `MAX_URL_LENGTH` or the default. */
+export function resolveMaxUrlLengthFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  return parsePositiveIntEnv(env[ENV_MAX_URL_LENGTH], DEFAULT_MAX_URL_LENGTH);
+}
+
+/** Resolves CSRF token lifetime from `CSRF_TTL_SECONDS` or the default. */
+export function resolveCsrfTtlSecondsFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  return parsePositiveIntEnv(env[ENV_CSRF_TTL_SECONDS], DEFAULT_CSRF_TTL_SECONDS);
+}
+
+/** Brute-force thresholds resolved from env with defaults. */
+export function resolveBruteForceConfigFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): {
+  maxAttempts: number;
+  windowSeconds: number;
+  lockSeconds: number;
+} {
+  return {
+    maxAttempts: parsePositiveIntEnv(
+      env[ENV_BRUTE_FORCE_MAX_ATTEMPTS],
+      DEFAULT_BRUTE_FORCE_MAX_ATTEMPTS,
+    ),
+    windowSeconds: parsePositiveIntEnv(
+      env[ENV_BRUTE_FORCE_WINDOW_SECONDS],
+      DEFAULT_BRUTE_FORCE_WINDOW_SECONDS,
+    ),
+    lockSeconds: parsePositiveIntEnv(
+      env[ENV_BRUTE_FORCE_LOCK_SECONDS],
+      DEFAULT_BRUTE_FORCE_LOCK_SECONDS,
+    ),
+  };
+}

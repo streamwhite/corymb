@@ -1,3 +1,12 @@
+import {
+  HTTP_STATUS_REQUEST_TIMEOUT,
+  HTTP_STATUS_URI_TOO_LONG,
+} from "@/constants/http-status.js";
+import {
+  MSG_REQUEST_TIMEOUT,
+  MSG_URI_TOO_LONG,
+} from "@/constants/messages.js";
+
 export const ERROR_CODE_INTERNAL = "internal_error" as const;
 export const ERROR_CODE_VALIDATION = "validation_error" as const;
 export const ERROR_CODE_UNAUTHORIZED = "unauthorized" as const;
@@ -6,6 +15,8 @@ export const ERROR_CODE_NOT_FOUND = "not_found" as const;
 export const ERROR_CODE_CONFLICT = "conflict" as const;
 export const ERROR_CODE_RATE_LIMITED = "rate_limited" as const;
 export const ERROR_CODE_SERVICE_UNAVAILABLE = "service_unavailable" as const;
+export const ERROR_CODE_REQUEST_TIMEOUT = "request_timeout" as const;
+export const ERROR_CODE_URI_TOO_LONG = "uri_too_long" as const;
 
 export type AppErrorOptions = {
   code?: string;
@@ -81,6 +92,24 @@ export class RateLimitError extends AppError {
 export class ServiceUnavailableError extends AppError {
   constructor(message = "Service unavailable", details?: unknown) {
     super(503, message, { code: ERROR_CODE_SERVICE_UNAVAILABLE, details });
+  }
+}
+
+export class RequestTimeoutError extends AppError {
+  constructor(message = MSG_REQUEST_TIMEOUT, details?: unknown) {
+    super(HTTP_STATUS_REQUEST_TIMEOUT, message, {
+      code: ERROR_CODE_REQUEST_TIMEOUT,
+      details,
+    });
+  }
+}
+
+export class UriTooLongError extends AppError {
+  constructor(message = MSG_URI_TOO_LONG, details?: unknown) {
+    super(HTTP_STATUS_URI_TOO_LONG, message, {
+      code: ERROR_CODE_URI_TOO_LONG,
+      details,
+    });
   }
 }
 

@@ -16,6 +16,10 @@ export const HTTP_STATUS_NOT_FOUND = 404 as const;
 
 export const HTTP_STATUS_PAYLOAD_TOO_LARGE = 413 as const;
 
+export const HTTP_STATUS_REQUEST_TIMEOUT = 408 as const;
+
+export const HTTP_STATUS_URI_TOO_LONG = 414 as const;
+
 export const HTTP_STATUS_TOO_MANY_REQUESTS = 429 as const;
 
 export const HTTP_STATUS_INTERNAL = 500 as const;
