@@ -20,7 +20,7 @@ blocked. Custom routes are **not** auto-wrapped.
 import {
   classifyUserAgent, shouldBlockBot, withBotDetection,
   detectRequestBot, blockRequestIfBot, buildRobotsTxt, robotsTxtResponse,
-} from "bun-backend-starter";
+} from "corymb";
 
 const handler = compose([/* ... */], withBotDetection(async (req) => new Response("ok")));
 ```
@@ -72,7 +72,7 @@ const app = await createApp({
 ## SSRF checks & safe fetch
 
 ```ts
-import { checkOutboundUrl, isSafeOutboundUrl, safeFetch, assertSafeOutboundUrl } from "bun-backend-starter";
+import { checkOutboundUrl, isSafeOutboundUrl, safeFetch, assertSafeOutboundUrl } from "corymb";
 
 isSafeOutboundUrl("https://example.com/hook");                     // true
 const r = checkOutboundUrl("https://internal.corp/x", { allowedHosts: ["*.corp"] });
@@ -92,7 +92,7 @@ redirect checking (pass `redirect: "manual"` if needed), no timeout/retry.
 ## Sanitize helpers
 
 ```ts
-import { escapeHtml, stripHtml, sanitizeStrings, safeJoinPath, isPathTraversal } from "bun-backend-starter";
+import { escapeHtml, stripHtml, sanitizeStrings, safeJoinPath, isPathTraversal } from "corymb";
 
 escapeHtml(`<a href="x">`);                 // &lt;a href=&quot;x&quot;&gt;
 stripHtml("<b>Bob</b>");                    // "Bob"

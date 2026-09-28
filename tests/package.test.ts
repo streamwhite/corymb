@@ -16,7 +16,7 @@ describe("package publish contract", () => {
   });
 
   it("has the expected name", () => {
-    expect(pkg.name).toBe("bun-backend-starter");
+    expect(pkg.name).toBe("corymb");
   });
 
   it("exposes a runtime entry and type declarations", () => {
@@ -32,7 +32,7 @@ describe("package publish contract", () => {
 
   it("declares the server CLI as the bin", () => {
     const bin = pkg.bin as Record<string, string>;
-    expect(bin["bun-backend-starter"]).toBe("./dist/cli.js");
+    expect(bin["corymb"]).toBe("./dist/cli.js");
   });
 
   it("ships dist, docs, and env example", () => {

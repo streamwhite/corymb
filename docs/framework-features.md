@@ -9,7 +9,7 @@ start with consistent behavior.
 throws a single `ConfigError` listing all problems.
 
 ```ts
-import { loadAppConfig } from "bun-backend-starter";
+import { loadAppConfig } from "corymb";
 
 const config = loadAppConfig();
 config.server.port;      // number
@@ -22,7 +22,7 @@ config.log.level;        // debug | info | warn | error
 Use `ConfigReader` for your own grouped, validated sections:
 
 ```ts
-import { ConfigReader } from "bun-backend-starter";
+import { ConfigReader } from "corymb";
 
 const r = new ConfigReader(process.env);
 const billing = { key: r.secret("BILLING_KEY", 16), retries: r.int("BILLING_RETRIES", 3) };
@@ -52,7 +52,7 @@ Throw `AppError` subclasses from routes; middleware maps them to a unified body
 and hides 5xx internals.
 
 ```ts
-import { ValidationError, NotFoundError } from "bun-backend-starter";
+import { ValidationError, NotFoundError } from "corymb";
 
 throw new ValidationError("title is required", { field: "title" });
 ```
@@ -171,7 +171,7 @@ With `REDIS_URL` set, counters are atomic and shared across every replica;
 otherwise an in-memory limiter covers single-instance deploys.
 
 ```ts
-import { withRateLimit, createRateLimiter } from "bun-backend-starter";
+import { withRateLimit, createRateLimiter } from "corymb";
 
 // Use the shared default limiter (Redis via REDIS_URL):
 "/api/x": { POST: withRateLimit("strict", handler) };
@@ -197,7 +197,7 @@ Compose reusable middleware around any route. A middleware receives a shared
 response.
 
 ```ts
-import { compose, type Middleware } from "bun-backend-starter";
+import { compose, type Middleware } from "corymb";
 
 const withTenant: Middleware = (ctx, next) => {
   ctx.state.tenant = ctx.req.headers.get("X-Tenant-Id") ?? "public";
@@ -222,7 +222,7 @@ Schema-agnostic validators parse/normalize input or throw `ValidationError`;
 `withValidation` attaches the result to `ctx.state`.
 
 ```ts
-import { withValidation, readValidated, ValidationError } from "bun-backend-starter";
+import { withValidation, readValidated, ValidationError } from "corymb";
 
 const parseTodo = (input: unknown) => {
   const { title } = input as { title?: unknown };
@@ -257,7 +257,7 @@ const app = await createApp({ compression: { thresholdBytes: 2048 } });
 ```ts
 import {
   parseCookies, serializeCookie, signCookieValue, verifyCookieValue, withCookies,
-} from "bun-backend-starter";
+} from "corymb";
 
 const signed = signCookieValue("session-1", secret);
 const value = verifyCookieValue(signed, secret);          // undefined if tampered
@@ -275,7 +275,7 @@ compose([withCookies()], async (ctx) =>
 enforces a size cap (throws `ValidationError`).
 
 ```ts
-import { parseMultipartUpload, isMultipart } from "bun-backend-starter";
+import { parseMultipartUpload, isMultipart } from "corymb";
 
 const { file, fields } = await parseMultipartUpload(req, { maxBytes: 5_000_000 });
 await app.storage.put({ key: file.filename, body: file.bytes, contentType: file.contentType });
@@ -284,7 +284,7 @@ await app.storage.put({ key: file.filename, body: file.bytes, contentType: file.
 ## Streaming
 
 ```ts
-import { createSseResponse, streamFromIterable, formatSseEvent } from "bun-backend-starter";
+import { createSseResponse, streamFromIterable, formatSseEvent } from "corymb";
 
 // SSE with imperative send/close
 return createSseResponse((stream) => {
@@ -324,7 +324,7 @@ await startServer({
 requiring one.
 
 ```ts
-import { withSession, readUser } from "bun-backend-starter";
+import { withSession, readUser } from "corymb";
 
 const handler = compose([withSession()], async (ctx) => {
   return Response.json({ user: readUser(ctx) });
@@ -348,7 +348,7 @@ CACHE_DRIVER=memory bun run dev
 Programmatic use:
 
 ```ts
-import { createMemoryCache, createCacheBundle } from "bun-backend-starter";
+import { createMemoryCache, createCacheBundle } from "corymb";
 
 const cache = createMemoryCache({ maxItems: 10_000, defaultTtlSeconds: 300 });
 await cache.set("k", "v", 60);

@@ -1,7 +1,7 @@
 ---
 name: framework-development
 description: >-
-  Build backends on the bun-backend-starter framework (Bun + Bun.serve route
+  Build backends on the corymb framework (Bun + Bun.serve route
   handlers). Covers installing/scaffolding a project, createApp/startServer
   wiring, the public API, routes and middleware, Better Auth (passkeys, 2FA,
   sessions, sensitive step-up), PostgreSQL + PostgREST data access with RLS,
@@ -14,21 +14,21 @@ description: >-
   editing this repository.
 ---
 
-# Developing with the `bun-backend-starter` framework
+# Developing with the `corymb` framework
 
-`bun-backend-starter` is an **opinionated, production-ready Bun backend shipped as
+`corymb` is an **opinionated, production-ready Bun backend shipped as
 an installable package**. Consumers install it and extend it through a small public
 API; they never copy its internals. Framework updates reach consumers through a
 version bump.
 
-- **Package name / import specifier:** `bun-backend-starter`
+- **Package name / import specifier:** `corymb`
 - **Runtime:** Bun `>= 1.3.0`
 - **Goal:** make a new backend fast to start.
 - **Out of scope:** your business logic, plus optional modules you add per project.
 
 ## When to use this skill
 
-Use it when the task mentions `bun-backend-starter`, `createApp`, `startServer`,
+Use it when the task mentions `corymb`, `createApp`, `startServer`,
 Bun backend scaffolding with this framework, or when working inside this
 repository. Load only the reference files relevant to the task (see the index).
 
@@ -57,7 +57,7 @@ Consumer app
    must go through PostgREST (`app.data` / `POSTGREST_URL`) so RLS applies to the
    verified Better Auth JWT. See `references/03-data-postgrest.md` and
    `docs/adr/0001-postgrest-auth-exception.md`.
-2. **Public API only.** Import from `bun-backend-starter`. Never depend on
+2. **Public API only.** Import from `corymb`. Never depend on
    `src/*` internals from a consumer project.
 3. **Consumer routes win.** `routes`, `middleware` and `websocket` passed to
    `startServer`/`createApp` are merged after the built-ins.
@@ -68,11 +68,11 @@ Consumer app
 ## Quick start (new project)
 
 ```sh
-bunx bun-backend-starter init my-app
+bunx corymb init my-app
 cd my-app && bun install
 # edit .env: BETTER_AUTH_SECRET (>=32 chars), DATABASE_URL, POSTGREST_URL; start Redis
 bun run db:migrate              # creates auth + app schemas
-bunx bun-backend-starter jwks   # writes postgrest/jwks.json for PostgREST
+bunx corymb jwks   # writes postgrest/jwks.json for PostgREST
 bun run dev
 ```
 
@@ -83,7 +83,7 @@ JWT, audit, realtime events and background jobs.
 ## Minimal wiring
 
 ```ts
-import { startServer, withRateLimit } from "bun-backend-starter";
+import { startServer, withRateLimit } from "corymb";
 
 const { server, app, url } = await startServer({
   idempotencyPaths: ["/api/todos"],

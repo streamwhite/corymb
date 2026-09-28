@@ -10,7 +10,7 @@ cache-backed.
 import {
   createEnvFeatureFlags, createStaticFeatureFlags, createOpenFeatureFlags,
   createCachedFeatureFlags, parseFeatureFlags, withFeatureFlag,
-} from "bun-backend-starter";
+} from "corymb";
 
 const app = await createApp();                       // env flags: FEATURE_FLAGS="new-ui,beta"
 await app.flags.isEnabled("new-ui");                 // false when unknown
@@ -47,7 +47,7 @@ Provider-agnostic facade: plans/subscriptions/entitlements over any
 import {
   createBilling, createMemoryBillingProvider, withEntitlement,
   BILLING_INTERVAL_MONTH, compose,
-} from "bun-backend-starter";
+} from "corymb";
 
 const app = await createApp({
   billing: createBilling(

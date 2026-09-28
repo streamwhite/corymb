@@ -20,7 +20,7 @@
 任何数据变更后调用 `publishRealtimeEvent` 广播(经 Redis pub/sub 跨实例分发):
 
 ```ts
-import { publishRealtimeEvent, type EventBus } from "bun-backend-starter";
+import { publishRealtimeEvent, type EventBus } from "corymb";
 
 await publishRealtimeEvent(bus /* EventBus — e.g. app.events */, {
   type: "item.updated",        // 自定义事件类型

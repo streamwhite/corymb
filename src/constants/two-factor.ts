@@ -48,7 +48,7 @@ export const DEFAULT_TWO_FACTOR_TOTP_DIGITS = 6 as const;
 
 export const DEFAULT_TWO_FACTOR_TOTP_PERIOD_SECONDS = 30 as const;
 
-export const DEFAULT_TWO_FACTOR_ISSUER = "Backend Template" as const;
+export const DEFAULT_TWO_FACTOR_ISSUER = "Corymb" as const;
 
 const TOTP_ALLOWED_DIGITS = [6, 8] as const;
 

@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 
-export const PACKAGE_NAME = "bun-backend-starter" as const;
+export const PACKAGE_NAME = "corymb" as const;
 export const CLI_INIT_COMMAND = "init" as const;
 export const CLI_START_COMMAND = "start" as const;
 export const CLI_MIGRATE_COMMAND = "migrate" as const;
@@ -107,10 +107,10 @@ function packageJsonFor(projectName: string): string {
       scripts: {
         dev: "bun --watch src/index.ts",
         start: "NODE_ENV=production bun src/index.ts",
-        "db:migrate": "bunx bun-backend-starter migrate",
-        "db:migrate:status": "bunx bun-backend-starter migrate:status",
-        "db:seed": "bunx bun-backend-starter seed",
-        "jwks:export": "bunx bun-backend-starter jwks",
+        "db:migrate": "bunx corymb migrate",
+        "db:migrate:status": "bunx corymb migrate:status",
+        "db:seed": "bunx corymb seed",
+        "jwks:export": "bunx corymb jwks",
       },
       dependencies: {
         [PACKAGE_NAME]: "^1.0.0",
@@ -301,7 +301,7 @@ data is served by PostgREST with row-level security.
 bun install
 # edit .env — set BETTER_AUTH_SECRET, DATABASE_URL, POSTGREST_URL and ensure Redis is running
 bun run db:migrate          # creates the auth + app schemas
-bunx bun-backend-starter jwks   # writes postgrest/jwks.json for PostgREST
+bunx corymb jwks   # writes postgrest/jwks.json for PostgREST
 bun run dev
 \`\`\`
 

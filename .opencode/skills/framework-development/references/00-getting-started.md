@@ -4,14 +4,14 @@
 
 ```sh
 # New project (recommended)
-bunx bun-backend-starter init my-app [--force]
+bunx corymb init my-app [--force]
 cd my-app && bun install
 
 # Use as a library in an existing project
-bun add bun-backend-starter
+bun add corymb
 
 # Run the built-in server as-is
-bunx bun-backend-starter          # same as: bunx bun-backend-starter start
+bunx corymb          # same as: bunx corymb start
 ```
 
 `init` writes: `package.json`, `tsconfig.json`, `.gitignore`, `.env`,
@@ -22,7 +22,7 @@ bunx bun-backend-starter          # same as: bunx bun-backend-starter start
 
 | Command | Purpose |
 | --- | --- |
-| `bun-backend-starter` / `start` | Start the built-in server (loads + validates config first). |
+| `corymb` / `start` | Start the built-in server (loads + validates config first). |
 | `init <dir> [--force]` | Scaffold a consumer project. |
 | `migrate` | Apply SQL migrations to `DATABASE_URL`. |
 | `migrate:status` | Show applied/pending migrations. |

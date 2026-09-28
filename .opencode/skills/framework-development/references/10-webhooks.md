@@ -7,7 +7,7 @@ sign the string `` `${timestampSeconds}.${body}` `` with HMAC-SHA256.
 ## Outbound (`app.webhooks`)
 
 ```ts
-import { createWebhookDispatcher, createWebhookEvent } from "bun-backend-starter";
+import { createWebhookDispatcher, createWebhookEvent } from "corymb";
 
 const webhooks = createWebhookDispatcher({
   endpoints: [{ id: "ep_1", url: "https://example.com/hooks", secret: process.env.WH_SECRET!, events: ["user.created"] }],
@@ -45,7 +45,7 @@ blocked → `skipped` with `error: "blocked:<reason>"`); relax with
 ## Inbound verification
 
 ```ts
-import { compose, readWebhookEvent, withWebhookVerification } from "bun-backend-starter";
+import { compose, readWebhookEvent, withWebhookVerification } from "corymb";
 
 const handler = compose(
   [withWebhookVerification({ secret: process.env.WH_SECRET!, toleranceSeconds: 300 })],

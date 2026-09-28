@@ -6,7 +6,7 @@
 structured-log sink plus any `auditSinks`. Sink failures are logged, never thrown.
 
 ```ts
-import { AUDIT_ACTIONS } from "bun-backend-starter";
+import { AUDIT_ACTIONS } from "corymb";
 
 await app.audit({
   action: AUDIT_ACTIONS.dataDeleted,
@@ -29,7 +29,7 @@ await app.audit({
 import {
   createAuditLogger, createLoggerAuditSink, createMemoryAuditSink,
   createFileAuditSink, createQueueAuditSink,
-} from "bun-backend-starter";
+} from "corymb";
 ```
 
 - `createFileAuditSink(path)` — append JSONL to a file.

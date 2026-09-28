@@ -79,7 +79,7 @@ export const ENV_MAX_PASSKEYS_PER_USER = "MAX_PASSKEYS_PER_USER" as const;
 
 export const DEFAULT_MAX_PASSKEYS_PER_USER = 5 as const;
 
-export const PASSKEY_RP_NAME = "Backend Template" as const;
+export const PASSKEY_RP_NAME = "Corymb" as const;
 
 export const AUTH_PASSKEY_GENERATE_REGISTER_OPTIONS_PATH =
   `${BETTER_AUTH_BASE_PATH}/passkey/generate-register-options` as const;

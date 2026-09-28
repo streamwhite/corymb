@@ -11,7 +11,7 @@ export const ENV_MCP_NAME = "MCP_NAME" as const;
 
 export const ENV_MCP_VERSION = "MCP_VERSION" as const;
 
-export const DEFAULT_MCP_NAME = "backend-template" as const;
+export const DEFAULT_MCP_NAME = "corymb" as const;
 
 export const DEFAULT_MCP_VERSION = "1.0.0" as const;
 

@@ -23,7 +23,7 @@ is merged before `options.routes`, so consumer routes win on path conflict.
 ## Manual construction
 
 ```ts
-import { buildMcpRoutes, createMcpHandler, createLogger, createStaticFeatureFlags } from "bun-backend-starter";
+import { buildMcpRoutes, createMcpHandler, createLogger, createStaticFeatureFlags } from "corymb";
 
 const handler = createMcpHandler(
   {
@@ -48,7 +48,7 @@ const routes = buildMcpRoutes("/mcp", handler);
 and `task_counts` (when `taskCounts` is provided). Internal failures return
 JSON-RPC code `-32603` with HTTP `500`.
 
-Env: `MCP_ENABLED` (false), `MCP_TOKEN`, `MCP_NAME` (`backend-template`),
+Env: `MCP_ENABLED` (false), `MCP_TOKEN`, `MCP_NAME` (`corymb`),
 `MCP_VERSION` (`1.0.0`). Exports: `createMcpHandler`, `buildMcpRoutes`,
 `MCP_BASE_PATH`, `resolveMcpConfigFromEnv`, `DEFAULT_MCP_NAME`,
 `DEFAULT_MCP_VERSION`, `ENV_MCP_ENABLED`, `ENV_MCP_TOKEN`, `ENV_MCP_NAME`,

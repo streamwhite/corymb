@@ -6,7 +6,7 @@
 Backend chosen by `CACHE_DRIVER=redis|memory`.
 
 ```ts
-import { createMemoryCache, createCacheBundle } from "bun-backend-starter";
+import { createMemoryCache, createCacheBundle } from "corymb";
 
 const cache = createMemoryCache({ maxItems: 10_000, defaultTtlSeconds: 300, onEviction });
 await cache.set("k", "v", 60);
@@ -86,7 +86,7 @@ Default driver is `console` (`MAILER_DRIVER=console|noop`). Override with
 ## Graceful shutdown
 
 ```ts
-import { createGracefulShutdown } from "bun-backend-starter";
+import { createGracefulShutdown } from "corymb";
 
 createGracefulShutdown({
   logger: app.logger,

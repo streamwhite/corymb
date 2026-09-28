@@ -1,4 +1,4 @@
-# bun-backend-starter
+# corymb
 
 Production-ready Bun backend as an installable package: authentication, persistence, caching, realtime, rate limiting, uploads and API docs — everything wired and tested.
 
@@ -30,12 +30,12 @@ Production-ready Bun backend as an installable package: authentication, persiste
 ## 1. New project (recommended)
 
 ```sh
-bunx bun-backend-starter init my-app
+bunx corymb init my-app
 cd my-app
 bun install
 # edit .env — BETTER_AUTH_SECRET, DATABASE_URL, POSTGREST_URL; start Redis
 bun run db:migrate      # create auth + app schemas
-bunx bun-backend-starter jwks   # export postgrest/jwks.json
+bunx corymb jwks   # export postgrest/jwks.json
 bun run dev
 ```
 
@@ -49,7 +49,7 @@ PostgREST configuration.
 ## 2. Use as a library
 
 ```sh
-bun add bun-backend-starter
+bun add corymb
 ```
 
 ```ts
@@ -59,7 +59,7 @@ import {
   publishRealtimeEvent,
   startServer,
   withRateLimit,
-} from 'bun-backend-starter';
+} from 'corymb';
 
 const { server, app, url } = await startServer({
   // Optional: skip Redis for local experiments
@@ -100,10 +100,10 @@ See [`.env.example`](.env.example) for environment variables.
 ## 3. Run the built-in server as-is
 
 ```sh
-bun add bun-backend-starter
+bun add corymb
 # configure .env (BETTER_AUTH_SECRET + REDIS_URL)
-bunx bun-backend-starter
-# or: bunx bun-backend-starter start
+bunx corymb
+# or: bunx corymb start
 ```
 
 ## Develop this repository

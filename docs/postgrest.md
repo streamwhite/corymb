@@ -19,14 +19,14 @@ Server route (optional) ──► app.data.withToken(userJwt).from("todos")...
 1. **Migrate** the auth/app schemas (creates `auth`, `app`, `auth.uid()`):
 
    ```sh
-   bunx bun-backend-starter migrate     # or: bun run db:migrate
+   bunx corymb migrate     # or: bun run db:migrate
    ```
 
 2. **Export the JWKS** used by PostgREST (also creates the signing key pair on
    first run):
 
    ```sh
-   bunx bun-backend-starter jwks        # writes postgrest/jwks.json
+   bunx corymb jwks        # writes postgrest/jwks.json
    ```
 
 3. **Bootstrap roles and grants** as a privileged database role. Edit

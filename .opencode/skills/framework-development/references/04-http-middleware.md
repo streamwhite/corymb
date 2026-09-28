@@ -10,7 +10,7 @@ built-ins and win on conflict.
 ## Middleware
 
 ```ts
-import { compose, type Middleware } from "bun-backend-starter";
+import { compose, type Middleware } from "corymb";
 
 const withTenant: Middleware = (ctx, next) => {
   ctx.state.tenant = ctx.req.headers.get("X-Tenant-Id") ?? "public";
@@ -40,7 +40,7 @@ enabled.
 ## Request validation
 
 ```ts
-import { withValidation, readValidated, ValidationError } from "bun-backend-starter";
+import { withValidation, readValidated, ValidationError } from "corymb";
 
 const parseTodo = (input: unknown) => {
   const { title } = input as { title?: unknown };
@@ -68,7 +68,7 @@ reads `ctx.state.input`. Validators are schema-agnostic (Zod is available);
 import {
   parseCookies, readCookieValue, serializeCookie, serializeClearedCookie,
   signCookieValue, verifyCookieValue, readSignedCookie, withCookies,
-} from "bun-backend-starter";
+} from "corymb";
 
 const signed = signCookieValue("session-1", secret);
 verifyCookieValue(signed, secret);                       // original value or undefined
@@ -86,7 +86,7 @@ timing-safe compare. Aliases: `serializeCookieHeader` = `formatSetCookie`.
 ## Multipart uploads
 
 ```ts
-import { parseMultipartUpload, isMultipart } from "bun-backend-starter";
+import { parseMultipartUpload, isMultipart } from "corymb";
 
 const { file, fields } = await parseMultipartUpload(req, { maxBytes: 5_000_000, parseFields: true });
 await app.storage.put({ key: file.filename, body: file.bytes, contentType: file.contentType });
@@ -99,7 +99,7 @@ uses this plus `app.storage`.
 ## Streaming & SSE helpers
 
 ```ts
-import { createSseResponse, streamFromIterable, formatSseEvent } from "bun-backend-starter";
+import { createSseResponse, streamFromIterable, formatSseEvent } from "corymb";
 
 // Imperative SSE:
 return createSseResponse((stream) => {
@@ -128,7 +128,7 @@ return streamFromIterable(asyncGenerator());
 ## Rate limiting
 
 ```ts
-import { withRateLimit, createRateLimiter } from "bun-backend-starter";
+import { withRateLimit, createRateLimiter } from "corymb";
 
 "/api/x": { POST: withRateLimit("strict", handler) };                 // shared Redis limiter
 const limiter = createRateLimiter({ redisUrl: process.env.REDIS_URL });

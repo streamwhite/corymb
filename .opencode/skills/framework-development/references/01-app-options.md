@@ -92,7 +92,7 @@ max-URL-length → request-timeout → compression → CSRF → brute-force →
 ## Owning `Bun.serve` yourself
 
 ```ts
-import { createApp } from "bun-backend-starter";
+import { createApp } from "corymb";
 
 const app = await createApp({ /* options */ });
 Bun.serve({

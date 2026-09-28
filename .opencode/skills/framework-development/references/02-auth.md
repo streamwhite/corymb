@@ -11,7 +11,7 @@ TOTP + backup codes), passkeys/WebAuthn.
 ## Sessions in routes
 
 ```ts
-import { compose, withSession, readUser, readSession, bearerToken } from "bun-backend-starter";
+import { compose, withSession, readUser, readSession, bearerToken } from "corymb";
 
 const handler = compose([withSession()], async (ctx) => {
   const user = readUser(ctx);        // { id, email, name?, username? }
@@ -40,7 +40,7 @@ High-risk handlers require a **fresh** session or a recent password re-check.
 import {
   withSensitiveOperation, requireSensitiveVerification,
   createSensitiveVerifyStore, isSessionFresh,
-} from "bun-backend-starter";
+} from "corymb";
 
 const store = createSensitiveVerifyStore(app.cache, 300);
 
@@ -93,11 +93,11 @@ from `BETTER_AUTH_URL`; production must be HTTPS.
 ## JWKS for PostgREST
 
 ```sh
-bunx bun-backend-starter jwks          # writes postgrest/jwks.json
+bunx corymb jwks          # writes postgrest/jwks.json
 ```
 
 ```ts
-import { buildPublicJwks, writeJwksFile } from "bun-backend-starter";
+import { buildPublicJwks, writeJwksFile } from "corymb";
 const jwks = await buildPublicJwks(app.auth);
 ```
 

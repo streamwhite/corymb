@@ -39,7 +39,7 @@ import {
   buildRobotsTxt,
   ROBOTS_TXT_PATH,
   type BotTokenLists,
-} from "bun-backend-starter";
+} from "corymb";
 
 // 保护自定义路由
 const protectedHandler = withBotDetection((req) => Response.json({ ok: true }));

@@ -1,7 +1,7 @@
 # PostgREST configuration example. Copy, edit values, then run:
 #   postgrest postgrest.conf
 #
-# The JWKS file is produced by:  bunx bun-backend-starter jwks
+# The JWKS file is produced by:  bunx corymb jwks
 # Paths in `jwt-secret` starting with `@` are loaded from a file relative to the
 # process working directory.
 

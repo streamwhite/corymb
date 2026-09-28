@@ -8,7 +8,7 @@ stream. Requires a Better Auth session cookie (or bearer); unauthenticated → `
 Server publishes, Redis pub/sub fans out across replicas:
 
 ```ts
-import { publishRealtimeEvent } from "bun-backend-starter";
+import { publishRealtimeEvent } from "corymb";
 
 await publishRealtimeEvent(app.events, {
   type: "todo.updated",          // your event type

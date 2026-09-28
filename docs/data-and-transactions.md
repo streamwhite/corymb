@@ -32,7 +32,7 @@ Tuning via env:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `TWO_FACTOR_ISSUER` | `Backend Template` | Issuer shown in authenticator apps |
+| `TWO_FACTOR_ISSUER` | `Corymb` | Issuer shown in authenticator apps |
 | `TWO_FACTOR_TOTP_DIGITS` | `6` | TOTP code length (`6` or `8`) |
 | `TWO_FACTOR_TOTP_PERIOD_SECONDS` | `30` | TOTP time step |
 | `TWO_FACTOR_OTP_DIGITS` | `6` | Email OTP length |
@@ -56,7 +56,7 @@ bun run db:seed               # migrate + seed demo users
 Programmatic helpers:
 
 ```ts
-import { createAdminDb, closeAdminDb, migrationStatus, pendingMigrations } from "bun-backend-starter";
+import { createAdminDb, closeAdminDb, migrationStatus, pendingMigrations } from "corymb";
 
 const db = await createAdminDb();       // connects + applies migrations
 const status = await db.migrationStatus();
@@ -78,7 +78,7 @@ Put multi-statement logic in a PostgreSQL function and call it once over
 PostgREST. The function runs in one transaction server-side.
 
 ```ts
-import { runInTransaction } from "bun-backend-starter";
+import { runInTransaction } from "corymb";
 
 const result = await runInTransaction<{ id: string }>(
   app.data!.withToken(userJwt),
@@ -104,7 +104,7 @@ Use the admin connection for trusted server operations (jobs, admin actions).
 `withTransaction` wraps `BEGIN`/`COMMIT` and rolls back on any throw.
 
 ```ts
-import { withTransaction, withSavepoint } from "bun-backend-starter";
+import { withTransaction, withSavepoint } from "corymb";
 
 await withTransaction(db.sql, async (tx) => {
   await tx`insert into app.orders (id) values (${id})`;
@@ -121,7 +121,7 @@ A Unit of Work groups related steps into one transaction. Register steps with
 the `tx` handle passed to each step so it participates in the transaction.
 
 ```ts
-import { createUnitOfWork } from "bun-backend-starter";
+import { createUnitOfWork } from "corymb";
 
 const result = await createUnitOfWork(db.sql, (register) => {
   register((tx) => tx`insert into app.orders (id, total) values (${id}, ${total})`);

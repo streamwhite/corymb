@@ -6,7 +6,7 @@
 throws a single `ConfigError` listing every problem.
 
 ```ts
-import { loadAppConfig } from "bun-backend-starter";
+import { loadAppConfig } from "corymb";
 
 const config = loadAppConfig();
 config.env.nodeEnv;       // string
@@ -24,7 +24,7 @@ config.auth.baseURL;      // string
 For your own grouped sections use `ConfigReader`:
 
 ```ts
-import { ConfigReader } from "bun-backend-starter";
+import { ConfigReader } from "corymb";
 
 const r = new ConfigReader(process.env);
 const billing = { key: r.secret("BILLING_KEY", 16), retries: r.int("BILLING_RETRIES", 3) };
@@ -40,7 +40,7 @@ Helpers: `readEnv`, `readEnvOrThrow`, `readBoolEnv`, `readListEnv`,
 app; use `logger.child({ ... })` for scoped fields.
 
 ```ts
-import { createLogger, createJsonReporter, resolveLogLevelFromEnv } from "bun-backend-starter";
+import { createLogger, createJsonReporter, resolveLogLevelFromEnv } from "corymb";
 
 const logger = createLogger({ service: "api" });
 logger.info("created", { userId: "u1" });
@@ -59,7 +59,7 @@ Throw `AppError` subclasses from routes; the error middleware maps them to a
 unified body and hides 5xx internals.
 
 ```ts
-import { ValidationError, NotFoundError } from "bun-backend-starter";
+import { ValidationError, NotFoundError } from "corymb";
 
 throw new ValidationError("title is required", { field: "title" });
 ```

@@ -1,5 +1,5 @@
 {
-  "name": "bun-backend-starter",
+  "name": "corymb",
   "version": "1.0.0",
   "description": "Opinionated Bun backend framework: Better Auth (email/password + passkeys), PostgreSQL + PostgREST data API with RLS, Redis cache, SSE realtime, rate limiting, uploads and API docs.",
   "type": "module",
@@ -14,7 +14,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "bun-backend-starter": "./dist/cli.js"
+    "corymb": "./dist/cli.js"
   },
   "files": [
     "dist",

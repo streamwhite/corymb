@@ -83,7 +83,7 @@ bun run db:seed              # migrate + seed demo users
 ```
 
 ```ts
-import { createAdminDb, closeAdminDb, migrationStatus, pendingMigrations } from "bun-backend-starter";
+import { createAdminDb, closeAdminDb, migrationStatus, pendingMigrations } from "corymb";
 
 const db = await createAdminDb();
 const status = await db.migrationStatus();
@@ -98,7 +98,7 @@ await closeAdminDb(db);
 - **Privileged server work:** use the admin connection.
 
 ```ts
-import { withTransaction, withSavepoint, createUnitOfWork } from "bun-backend-starter";
+import { withTransaction, withSavepoint, createUnitOfWork } from "corymb";
 
 await withTransaction(db.sql, async (tx) => {
   await tx`insert into app.orders (id) values (${id})`;
@@ -123,7 +123,7 @@ Pure helpers over `URLSearchParams` (offset/page **or** cursor). Cursor encoding
 is opaque base64url JSON — not signed; never put secrets in it.
 
 ```ts
-import { parsePagination, applyPageRange, toPage } from "bun-backend-starter";
+import { parsePagination, applyPageRange, toPage } from "corymb";
 
 const params = parsePagination(new URL(req.url).searchParams);   // { page, pageSize, offset, limit }
 const builder = app.data!.from("posts").select("*").count();      // count() needed for accurate total
@@ -134,7 +134,7 @@ return Response.json(page);                                       // { data, met
 Cursor flow:
 
 ```ts
-import { parseCursorPagination, decodeCursor, applyCursorLimit, buildCursorPage } from "bun-backend-starter";
+import { parseCursorPagination, decodeCursor, applyCursorLimit, buildCursorPage } from "corymb";
 
 const { limit, cursor } = parseCursorPagination(new URL(req.url).searchParams);
 let builder = app.data!.from("posts").select("*").order("id");

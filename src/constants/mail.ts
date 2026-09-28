@@ -8,7 +8,7 @@ export const MAILER_DRIVER_CONSOLE = "console" as const;
 
 export const MAILER_DRIVER_NOOP = "noop" as const;
 
-export const DEFAULT_MAIL_FROM = "no-reply@hono-hands-on.local" as const;
+export const DEFAULT_MAIL_FROM = "no-reply@corymb.local" as const;
 
 export const DEFAULT_APP_PUBLIC_BASE_URL = "http://localhost:3000" as const;
 
