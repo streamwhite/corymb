@@ -135,7 +135,7 @@ billing, webhooks, MCP, realtime). Install it globally with the
 [`skills`](https://github.com/vercel-labs/skills) CLI:
 
 ```sh
-npx skills add streamwhite/hono-hands-on -g
+npx skills add streamwhite/corymb -g
 ```
 
 Works with OpenCode, Claude Code, Codex, Cursor and others. The skill lives in
