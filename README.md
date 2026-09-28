@@ -127,6 +127,21 @@ bun publish                 # prepack runs build automatically
 
 The package publishes `dist/` (bundled library + CLI + `.d.ts` types + SQL migrations), plus `README.md`, `LICENSE`, `.env.example`, and `docs/`.
 
+## Agent skill
+
+This repo ships a coding-agent skill that documents the whole framework
+(scaffolding, auth, PostgREST data, jobs, storage, audit, security, flags,
+billing, webhooks, MCP, realtime). Install it globally with the
+[`skills`](https://github.com/vercel-labs/skills) CLI:
+
+```sh
+npx skills add streamwhite/hono-hands-on -g
+```
+
+Works with OpenCode, Claude Code, Codex, Cursor and others. The skill lives in
+[`.opencode/skills/framework-development/`](.opencode/skills/framework-development/)
+and is self-contained (main `SKILL.md` plus focused `references/*.md`).
+
 ## Docs
 
 - [Database configuration](docs/database.md)

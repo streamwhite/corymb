@@ -1,102 +1,137 @@
 ---
 name: framework-development
 description: >-
-  Opinionated Bun backend framework. Use when
-  developing new projects on this framework.
+  Build backends on the bun-backend-starter framework (Bun + Bun.serve route
+  handlers). Covers installing/scaffolding a project, createApp/startServer
+  wiring, the public API, routes and middleware, Better Auth (passkeys, 2FA,
+  sessions, sensitive step-up), PostgreSQL + PostgREST data access with RLS,
+  migrations, transactions and Unit of Work, pagination, Redis/memory cache,
+  BullMQ jobs, object storage, audit, idempotency, rate limiting, request
+  limits, CSRF, brute-force lockout, SSRF/safe-fetch, bot detection, realtime
+  SSE and WebSockets, feature flags, billing entitlements, inbound/outbound
+  webhooks, and an MCP endpoint. Use when starting or extending a Bun backend
+  with this framework, when asking how a framework feature works, or when
+  editing this repository.
 ---
 
-# Framework development
+# Developing with the `bun-backend-starter` framework
 
-This project is an **opinionated backend framework**: easy to start a new
-project, shipped as a single installable package (`bun-backend-starter`) so
-framework updates sync to consumers through a version bump.
+`bun-backend-starter` is an **opinionated, production-ready Bun backend shipped as
+an installable package**. Consumers install it and extend it through a small public
+API; they never copy its internals. Framework updates reach consumers through a
+version bump.
 
-## Goal and scope
+- **Package name / import specifier:** `bun-backend-starter`
+- **Runtime:** Bun `>= 1.3.0`
+- **Goal:** make a new backend fast to start.
+- **Out of scope:** your business logic, plus optional modules you add per project.
 
-- **Goal**: make new backend projects fast to start; the framework is consumed
-  as a package, not copied.
-- **Scope**: common backend functionality.
-- **Out of scope** (add per project, keep the core lean): businees logics.
+## When to use this skill
+
+Use it when the task mentions `bun-backend-starter`, `createApp`, `startServer`,
+Bun backend scaffolding with this framework, or when working inside this
+repository. Load only the reference files relevant to the task (see the index).
 
 ## Core mental model
 
 ```
 Consumer app
-  └─ startServer(options) / createApp(options)   ← public entry points
-       ├─ routing + middleware chain (src/middleware)
-       ├─ Better Auth            → PostgreSQL `auth` schema (DATABASE_URL)
-       ├─ PostgREST data client  → PostgreSQL `app` schema + RLS (POSTGREST_URL)
-       ├─ cache (Redis cache-aside)
+  └─ startServer(options) / createApp(options)      ← public entry points
+       ├─ routing + middleware chain              (src/middleware, src/server)
+       ├─ Better Auth        → PostgreSQL auth schema (DATABASE_URL, direct pg)
+       ├─ PostgREST client   → PostgreSQL app schema + RLS (POSTGREST_URL)
+       ├─ cache (Redis, or in-memory LRU)
        ├─ BullMQ jobs (Redis)
        ├─ object storage (S3 / filesystem / memory)
-       ├─ audit events + idempotency + rate limiting
+       ├─ audit + idempotency + rate limiting + security guards
+       ├─ feature flags + billing entitlements
+       ├─ webhooks (outbound delivery, inbound verification)
+       ├─ MCP endpoint (/mcp)
        └─ realtime SSE + WebSocket
 ```
 
-- **Auth exception**: Better Auth talks to Postgres directly for its own tables
-  (`auth` schema). All _application_ data flows through PostgREST so RLS
-  applies to a verified Better Auth JWT. See
-  `docs/adr/0001-postgrest-auth-exception.md`.
-- **Public API only**: consumers import from the package root (`src/index.ts`
-  exports). Never depend on `src/*` internals from a consumer project.
+## Golden rules
 
-## Where things live
+1. **Auth is the one direct-database exception.** Better Auth writes its own
+   `auth` schema over `pg` via `DATABASE_URL`. Everything else (application data)
+   must go through PostgREST (`app.data` / `POSTGREST_URL`) so RLS applies to the
+   verified Better Auth JWT. See `references/03-data-postgrest.md` and
+   `docs/adr/0001-postgrest-auth-exception.md`.
+2. **Public API only.** Import from `bun-backend-starter`. Never depend on
+   `src/*` internals from a consumer project.
+3. **Consumer routes win.** `routes`, `middleware` and `websocket` passed to
+   `startServer`/`createApp` are merged after the built-ins.
+4. **Bun for everything.** `bun install`, `bun test`, `bun run dev`.
+5. **Validate input and check authorization in every route.** RLS protects rows,
+   not request bodies.
 
-| Area              | Module                                                   |
-| ----------------- | -------------------------------------------------------- |
-| App wiring        | `src/app.ts`, `src/server/start-server.ts`               |
-| Routes + builtins | `src/server/serve-routes.ts`                             |
-| Middleware        | `src/middleware/` (compose, registry, builtin/)          |
-| Auth              | `src/auth/` (runtime, jwks, session-middleware)          |
-| Data (PostgREST)  | `src/data/`                                              |
-| DB + migrations   | `src/db/` (admin-client, migrate, migrations/)           |
-| Jobs              | `src/tasks/` (BullMQ)                                    |
-| Storage           | `src/storage/`                                           |
-| Audit             | `src/audit/`                                             |
-| Idempotency       | `src/http/idempotency.ts`                                |
-| Rate limiting     | `src/http/rate-limit.ts` + `src/constants/rate-limit.ts` |
-| Realtime / WS     | `src/realtime/`, `src/websocket/`                        |
-| Config / logging  | `src/config/`, `src/observability/`                      |
-| Errors            | `src/errors/`                                            |
-| Scaffolding / CLI | `src/scaffold/`, `src/cli.ts`                            |
-| Docs              | `docs/` (feature docs + `docs/adr/`)                     |
-
-## New project workflow
+## Quick start (new project)
 
 ```sh
 bunx bun-backend-starter init my-app
 cd my-app && bun install
-# edit .env: BETTER_AUTH_SECRET, DATABASE_URL, POSTGREST_URL; start Redis
-bun run db:migrate          # creates auth + app schemas
+# edit .env: BETTER_AUTH_SECRET (>=32 chars), DATABASE_URL, POSTGREST_URL; start Redis
+bun run db:migrate              # creates auth + app schemas
 bunx bun-backend-starter jwks   # writes postgrest/jwks.json for PostgREST
 bun run dev
 ```
 
-Consumers extend via `startServer({ routes, middleware, websocket, ... })`.
-Consumer routes are merged after built-ins and win on conflict.
+The scaffold writes `src/index.ts` with sample routes (`/api/health`,
+`/api/todos`) showing routes, validation, PostgREST reads scoped to the caller's
+JWT, audit, realtime events and background jobs.
 
-## Development rules for this repo
+## Minimal wiring
 
-- Use `bun` for everything; `bun test` runs unit + Postgres/Redis integration.
-- New env vars go in `.env.example` and the relevant `src/constants/*.ts`
-  (and `env.production` guidance when needed).
-- Keep the public surface honest: add public API to `src/index.ts`.
+```ts
+import { startServer, withRateLimit } from "bun-backend-starter";
 
-## Common tasks
+const { server, app, url } = await startServer({
+  idempotencyPaths: ["/api/todos"],
+  auditRules: [{ path: "/api/todos", action: "data.created", targetType: "todo" }],
+  routes: {
+    "/api/hello": {
+      GET: withRateLimit("relaxed", () => Response.json({ ok: true })),
+    },
+  },
+});
+console.log(`listening on ${url.href}`);
+```
 
-- **Add a route**: extend `routes` passed to `startServer`, or add a builtin in
-  `src/server/serve-routes.ts`.
-- **Add middleware**: implement `Middleware` and pass via
-  `createApp({ middleware: [...] })`, or register with `createMiddlewareRegistry()`.
-- **Validate input**: `withValidation(parser, { target })` + `readValidated(ctx)`.
-- **Require a session**: `withSession()` then `readUser(ctx)`.
-- **Read/write app data**: `app.data.withToken(userJwt).from("table").select()`.
-- **Background work**: `app.tasks.run(name, handler, payload)` (BullMQ).
-- **Files**: `app.storage.put/get/head/delete`, `parseMultipartUpload(req)`.
-- **Audit**: `app.audit({ action })` or `auditRules` for path-based auditing.
-- **Idempotency**: set `idempotencyPaths` and require `Idempotency-Key`.
-- **Realtime**: `publishRealtimeEvent(app.events, ...)` (SSE) or a websocket
-  endpoint via `createApp({ websocket: [...] })`.
-- **Shutdown**: `createGracefulShutdown({ logger, steps }).installSignalHandlers()`.
+Prefer `createApp(options)` when you want to own `Bun.serve` yourself; it returns
+`{ routes, fetchNotFound, onServeError, ... }`.
 
-## Reference
+## Reference index
+
+Read only the file(s) that match the task. Paths are relative to this skill.
+
+| File | Read when you need |
+| --- | --- |
+| `references/00-getting-started.md` | Scaffolding, CLI commands, env vars, built-in routes, project layout, dev workflow. |
+| `references/01-app-options.md` | Every `CreateAppOptions` field and `AppInstance` member, with defaults. |
+| `references/02-auth.md` | Better Auth setup, sessions (cookie/bearer/JWT), 2FA, passkeys, session rotation, sensitive-operation step-up, JWKS. |
+| `references/03-data-postgrest.md` | `app.data` query builder, RLS, client-side access, migrations, transactions, Unit of Work, pagination. |
+| `references/04-http-middleware.md` | Route/middleware model, validation, cookies, multipart uploads, streaming/SSE helpers, CORS, compression, rate limits, request limits. |
+| `references/05-cache-jobs-storage.md` | `app.cache`, BullMQ `app.tasks`, `app.storage`, mailer. |
+| `references/06-audit-idempotency.md` | `app.audit`, audit sinks/rules, `Idempotency-Key` protection. |
+| `references/07-realtime-websocket.md` | Realtime SSE events and WebSocket endpoints. |
+| `references/08-security.md` | Bot detection, CSRF, brute-force lockout, SSRF checks, `safeFetch`, sanitize helpers. |
+| `references/09-flags-billing.md` | Feature flags and billing/entitlement gating. |
+| `references/10-webhooks.md` | Outbound signed webhook delivery and inbound signature verification. |
+| `references/11-mcp.md` | Exposing the app as an MCP (Model Context Protocol) server. |
+| `references/12-config-errors-observability.md` | Config validation, logging, error classes, graceful shutdown. |
+
+## Developing this repository
+
+```sh
+bun install
+cp .env.example .env        # fill BETTER_AUTH_SECRET, DATABASE_URL, POSTGREST_URL
+bun run db:migrate:prd
+bun run dev                 # watch mode
+bun test                    # unit + integration (needs Postgres/Redis, or TEST_DATABASE_URL)
+bun run build               # bundles dist/ (library + CLI + types + migrations)
+bun run lint                # biome
+```
+
+- New env vars go in `.env.example` and the matching `src/constants/*.ts`.
+- Add public API to `src/index.ts` (the package's only export entry).
+- `docs/` holds longer feature docs; `docs/adr/` records decisions.
