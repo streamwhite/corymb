@@ -141,6 +141,25 @@ const { data } = await app.data!
   .rpc("search_todos", { q: "reactt", max_rows: 10 });
 ```
 
+## Shared cluster (database-per-project)
+
+When several projects share one PostgreSQL cluster, anaglyph provisions each
+project's own database and a **project-scoped login role**, and revokes `PUBLIC`
+`CONNECT` so no other project's role can reach it. PostgreSQL roles are
+cluster-global, so the authenticator must be unique per project. Run this
+bootstrap against the project's database with that role:
+
+```sh
+psql "$DATABASE_URL" \
+  -v authenticator=<project>_app_authenticator \
+  -v authenticator_password='<pw>' \
+  -f postgrest/bootstrap.sql
+```
+
+The script is idempotent and leaves existing roles unchanged, so it is safe to
+re-run. `anon` / `authenticated` / `service_role` stay shared cluster-wide; they
+are only reachable through the project role's connection.
+
 ## Security notes
 
 - Never expose `DATABASE_URL` or `POSTGREST_SERVICE_TOKEN` to clients.
