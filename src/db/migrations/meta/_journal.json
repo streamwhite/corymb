@@ -20,6 +20,13 @@
       "when": 1757289602000,
       "tag": "0002_two_factor",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1757289603000,
+      "tag": "0003_pg_trgm",
+      "breakpoints": true
     }
   ]
 }

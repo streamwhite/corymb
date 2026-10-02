@@ -10,6 +10,12 @@ import {
 } from "@/constants/database.js";
 import { resolveMigrationsFolder } from "@/db/migrations-path.js";
 import { readMigrationFiles } from "@/db/read-migration-files.js";
+import {
+  PG_AVAILABLE,
+  createTestDatabase,
+  dropTestDatabase,
+  queryPg,
+} from "./helpers/test-db.js";
 
 describe("database configuration", () => {
   const original = process.env[ENV_DATABASE_URL];
@@ -59,5 +65,32 @@ describe("database configuration", () => {
     const allSql = migrations.flatMap((m) => m.sql).join("\n");
     expect(allSql).toContain(`schema if not exists ${AUTH_DB_SCHEMA}`);
     expect(allSql).toContain(`schema if not exists ${APP_DB_SCHEMA}`);
+  });
+
+  it("ships the pg_trgm extension for fuzzy search", () => {
+    const migrations = readMigrationFiles(resolveMigrationsFolder());
+    const allSql = migrations.flatMap((m) => m.sql).join("\n");
+    expect(allSql).toContain("extension if not exists pg_trgm");
+  });
+});
+
+describe.skipIf(!PG_AVAILABLE)("fuzzy search capability", () => {
+  it("installs pg_trgm and computes trigram similarity after migrate", async () => {
+    const pgUrl = await createTestDatabase();
+    try {
+      const extensions = await queryPg<{ extname: string }>(
+        pgUrl,
+        "select extname from pg_extension where extname = 'pg_trgm'",
+      );
+      expect(extensions.map((row) => row.extname)).toContain("pg_trgm");
+
+      const [row] = await queryPg<{ sim: number }>(
+        pgUrl,
+        "select similarity('reac', 'react')::float8 as sim",
+      );
+      expect(row?.sim).toBeGreaterThan(0.5);
+    } finally {
+      await dropTestDatabase(pgUrl);
+    }
   });
 });
