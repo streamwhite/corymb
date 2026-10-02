@@ -141,6 +141,158 @@ const { data } = await app.data!
   .rpc("search_todos", { q: "reactt", max_rows: 10 });
 ```
 
+## Search: full-text, suggestions, semantic, hybrid
+
+`migrate` installs `pg_trgm` (0003) and `unaccent` + a text search configuration
+`app.unaccent_english` + `app.immutable_unaccent()` (0004). Accents normalize
+(`réact` ~ `react`) for documents, queries, generated columns and indexes.
+**pgvector is not a trusted extension** — install it as the superuser
+(`create extension vector`) before using the semantic/hybrid functions.
+
+### Full-text search (FTS)
+
+Add a stored `tsvector` column (weighted) and a GIN index; rank with
+`ts_rank`/`ts_rank_cd` and highlight with `ts_headline`:
+
+```sql
+alter table app.todos add column search tsvector generated always as (
+  setweight(to_tsvector('app.unaccent_english', coalesce(title, '')), 'A') ||
+  setweight(to_tsvector('app.unaccent_english', coalesce(body, '')), 'B')
+) stored;
+create index todos_search_gin on app.todos using gin (search);
+```
+
+PostgREST exposes the operators natively (no function needed):
+
+```
+GET /todos?search=wfts(app.unaccent_english).react   # websearch_to_tsquery
+GET /todos?search=plfts(app.unaccent_english).react  # plainto_tsquery
+GET /todos?search=fts(app.unaccent_english).react    # to_tsquery
+GET /todos?search=phfts(app.unaccent_english).react  # phrase
+```
+
+Pass the same `app.unaccent_english` config so query parsing matches the stored
+vector. Use an RPC when you need ranking or snippets:
+
+```sql
+create or replace function app.search(q text, max_rows int default 20)
+returns table (id uuid, title text, rank_score real, headline text)
+language sql stable
+set search_path = app, public, pg_catalog
+as $$
+  select t.id, t.title,
+         ts_rank_cd(t.search, websearch_to_tsquery('app.unaccent_english', q)) as rank_score,
+         ts_headline('app.unaccent_english', coalesce(t.body, t.title),
+                     websearch_to_tsquery('app.unaccent_english', q),
+                     'StartSel=<mark>, StopSel=</mark>, MaxWords=20, MinWords=5') as headline
+  from app.todos t
+  where t.search @@ websearch_to_tsquery('app.unaccent_english', q)
+  order by rank_score desc
+  limit least(greatest(max_rows, 1), 100);
+$$;
+grant execute on function app.search(text, int) to authenticated;
+```
+
+### Suggestions (typo tolerance)
+
+Trigram suggestions on an unaccented expression index (the immutable wrapper
+makes the expression indexable):
+
+```sql
+create index todos_title_trgm on app.todos
+  using gin (app.immutable_unaccent(title) gin_trgm_ops);
+
+create or replace function app.search_suggest(q text, max_rows int default 10)
+returns table (suggestion text, similarity real)
+language sql stable
+set search_path = app, public, pg_catalog
+set pg_trgm.word_similarity_threshold = 0.4
+as $$
+  select t.title, word_similarity(app.immutable_unaccent(q), app.immutable_unaccent(t.title))
+  from app.todos t
+  where app.immutable_unaccent(q) <% app.immutable_unaccent(t.title)
+  order by 2 desc
+  limit least(greatest(max_rows, 1), 50);
+$$;
+```
+
+### Semantic search (pgvector)
+
+Store an embedding per row; the **application generates embeddings** and writes
+them (the framework never calls a model). Query by cosine distance:
+
+```sql
+alter table app.todos add column embedding vector(1536);
+create index todos_embedding_hnsw on app.todos using hnsw (embedding vector_cosine_ops);
+
+create or replace function app.search_semantic(query_embedding text, max_rows int default 20)
+returns table (id uuid, title text, distance real)
+language sql stable
+set search_path = app, public, pg_catalog
+as $$
+  select t.id, t.title, (t.embedding <=> query_embedding::vector) as distance
+  from app.todos t
+  where t.embedding is not null
+  order by t.embedding <=> query_embedding::vector
+  limit least(greatest(max_rows, 1), 100);
+$$;
+```
+
+Take the embedding as `text` (e.g. `"[0.1,0.2,…]"`) and cast inside: PostgREST
+sends JSON strings, and a `vector` argument would not resolve.
+
+### Hybrid search (RRF)
+
+Fuse the full-text and vector rankings with Reciprocal Rank Fusion (k = 60),
+which needs no score normalization:
+
+```sql
+create or replace function app.search_hybrid(q text, query_embedding text, max_rows int default 20)
+returns table (id uuid, title text, score real)
+language sql stable
+set search_path = app, public, pg_catalog
+as $$
+  with fts as (
+    select t.id, row_number() over (
+             order by ts_rank_cd(t.search, websearch_to_tsquery('app.unaccent_english', q)) desc) as rnk
+    from app.todos t
+    where t.search @@ websearch_to_tsquery('app.unaccent_english', q)
+    limit 100
+  ), vec as (
+    select t.id, row_number() over (order by t.embedding <=> query_embedding::vector) as rnk
+    from app.todos t
+    where t.embedding is not null
+    order by t.embedding <=> query_embedding::vector
+    limit 100
+  )
+  select t.id, t.title, sum(1.0 / (60 + r.rnk))::real as score
+  from (select id, rnk from fts union all select id, rnk from vec) r
+  join app.todos t on t.id = r.id
+  group by t.id, t.title
+  order by score desc
+  limit least(greatest(max_rows, 1), 100);
+$$;
+```
+
+All functions are `security invoker`, so **RLS still applies**.
+
+### Endpoints
+
+PostgREST has no nested routes; expose the functions over `/rpc/*` and let the
+reverse proxy present the public paths:
+
+```nginx
+location = /search          { rewrite ^ /rpc/search         break; proxy_pass http://127.0.0.1:3001; }
+location = /search/suggest  { rewrite ^ /rpc/search_suggest break; proxy_pass http://127.0.0.1:3001; }
+location = /search/semantic { rewrite ^ /rpc/search_semantic break; proxy_pass http://127.0.0.1:3001; }
+location = /search/hybrid   { rewrite ^ /rpc/search_hybrid  break; proxy_pass http://127.0.0.1:3001; }
+```
+
+Clients then call `POST /search` `{"q":"react"}`, `POST /search/semantic`
+`{"query_embedding":"[…]"}`, `POST /search/hybrid` `{"q":"react","query_embedding":"[…]"}`
+(functions are `STABLE`, so `GET` with query params also works). Re-run
+`notify pgrst, 'reload schema'` after changing them.
+
 ## Shared cluster (database-per-project)
 
 When several projects share one PostgreSQL cluster, anaglyph provisions each

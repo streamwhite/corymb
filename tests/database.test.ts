@@ -93,4 +93,34 @@ describe.skipIf(!PG_AVAILABLE)("fuzzy search capability", () => {
       await dropTestDatabase(pgUrl);
     }
   });
+
+  it("installs unaccent and the search text configuration after migrate", async () => {
+    const pgUrl = await createTestDatabase();
+    try {
+      const extensions = await queryPg<{ extname: string }>(
+        pgUrl,
+        "select extname from pg_extension where extname = 'unaccent'",
+      );
+      expect(extensions.map((row) => row.extname)).toContain("unaccent");
+
+      // The immutable wrapper normalizes accents for generated columns/indexes.
+      const [norm] = await queryPg<{ n: string }>(
+        pgUrl,
+        "select app.immutable_unaccent('réact') as n",
+      );
+      expect(norm?.n).toBe("react");
+
+      const [cfg] = await queryPg<{ present: boolean }>(
+        pgUrl,
+        `select exists (
+           select 1 from pg_ts_config c
+           join pg_namespace ns on ns.oid = c.cfgnamespace
+           where c.cfgname = 'unaccent_english' and ns.nspname = 'app'
+         ) as present`,
+      );
+      expect(cfg?.present).toBe(true);
+    } finally {
+      await dropTestDatabase(pgUrl);
+    }
+  });
 });

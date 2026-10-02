@@ -27,6 +27,13 @@
       "when": 1757289603000,
       "tag": "0003_pg_trgm",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1757289604000,
+      "tag": "0004_search",
+      "breakpoints": true
     }
   ]
 }
