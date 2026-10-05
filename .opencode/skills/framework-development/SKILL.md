@@ -64,6 +64,9 @@ Consumer app
 4. **Bun for everything.** `bun install`, `bun test`, `bun run dev`.
 5. **Validate input and check authorization in every route.** RLS protects rows,
    not request bodies.
+6. **Test the framework, not its dependencies.** Test logic `corymb` itself
+   implements; skip thin wrappers of Bun/Redis/BullMQ/S3/OpenFeature/better-auth
+   and PostgREST's own protocol. See `references/13-testing.md`.
 
 ## Quick start (new project)
 
@@ -119,6 +122,7 @@ Read only the file(s) that match the task. Paths are relative to this skill.
 | `references/10-webhooks.md` | Outbound signed webhook delivery and inbound signature verification. |
 | `references/11-mcp.md` | Exposing the app as an MCP (Model Context Protocol) server. |
 | `references/12-config-errors-observability.md` | Config validation, logging, error classes, graceful shutdown. |
+| `references/13-testing.md` | What to test vs skip (framework logic vs library wrappers), fakes vs managed Postgres/Redis, test conventions and definition of done. |
 
 ## Developing this repository
 
@@ -134,4 +138,6 @@ bun run lint                # biome
 
 - New env vars go in `.env.example` and the matching `src/constants/*.ts`.
 - Add public API to `src/index.ts` (the package's only export entry).
+- Tests live in `tests/<feature>.test.ts`; infra helpers in `tests/helpers/`.
+  Follow `references/13-testing.md` when adding or changing tests.
 - `docs/` holds longer feature docs; `docs/adr/` records decisions.

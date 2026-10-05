@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 import { RedisClient } from "bun";
 import {
   RATE_LIMIT_STRATEGY_RELAXED,
@@ -6,9 +6,15 @@ import {
 } from "@/constants/rate-limit.js";
 import { createRateLimiter, rateLimitClientKey } from "@/http/rate-limit.js";
 import { consumeRedisCounter } from "@/http/rate-limit-redis.js";
+import {
+  REDIS_AVAILABLE,
+  getTestRedisUrl,
+  stopTestRedis,
+} from "./helpers/test-redis.js";
 
-const ENV_TEST_REDIS_URL = "TEST_REDIS_URL" as const;
-const redisUrl = process.env[ENV_TEST_REDIS_URL];
+afterAll(async () => {
+  await stopTestRedis();
+});
 
 describe("rate limit client key", () => {
   it("prefers the first X-Forwarded-For address", () => {
@@ -56,9 +62,27 @@ describe("rate limiter (in-memory)", () => {
   });
 });
 
-describe.skipIf(redisUrl === undefined)("rate limiter (redis)", () => {
+describe("rate limit redis reply parsing", () => {
+  it("coerces string counters to numbers", async () => {
+    const fake = {
+      send: async () => ["3", "1200"],
+    } as unknown as RedisClient;
+    expect(await consumeRedisCounter(fake, "k", 1, 60)).toEqual([3, 1200]);
+  });
+
+  it("rejects an unexpected Redis reply shape", async () => {
+    const fake = {
+      send: async () => "not-an-array",
+    } as unknown as RedisClient;
+    await expect(consumeRedisCounter(fake, "k", 1, 60)).rejects.toThrow(
+      "Unexpected Redis rate-limit reply",
+    );
+  });
+});
+
+describe.skipIf(!REDIS_AVAILABLE)("rate limiter (redis)", () => {
   it("counts atomically with the Lua fixed-window counter", async () => {
-    const client = new RedisClient(redisUrl ?? "", { autoReconnect: false });
+    const client = new RedisClient(await getTestRedisUrl(), { autoReconnect: false });
     const key = `test:${crypto.randomUUID()}`;
     try {
       const first = await consumeRedisCounter(client, key, 1, 60);
@@ -73,7 +97,8 @@ describe.skipIf(redisUrl === undefined)("rate limiter (redis)", () => {
   });
 
   it("shares counts across limiter instances for the same key", async () => {
-    const options = { redisUrl: redisUrl ?? "", overrideMax: { strict: 2 } };
+    const url = await getTestRedisUrl();
+    const options = { redisUrl: url, overrideMax: { strict: 2 } };
     const limiterA = createRateLimiter(options);
     const limiterB = createRateLimiter(options);
     const key = crypto.randomUUID();

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createMemoryCache } from "@/cache/memory-cache.js";
+import { FEATURE_FLAG_CACHE_KEY } from "@/constants/flags.js";
 import { NotFoundError } from "@/errors/app-error.js";
 import { withFeatureFlag } from "@/flags/feature-flag-middleware.js";
 import { InMemoryProvider } from "@openfeature/server-sdk";
@@ -88,6 +89,33 @@ describe("feature flag providers", () => {
     expect(await flags.isEnabled("gamma")).toBe(true);
     expect(await flags.isEnabled("gamma")).toBe(true);
     expect(calls).toBe(1);
+  });
+
+  it("falls back to the source when the cached flag map is corrupt", async () => {
+    const cache = createMemoryCache();
+    await cache.set(FEATURE_FLAG_CACHE_KEY, "{not json", 30);
+    const source = {
+      isEnabled: async () => true,
+      all: async () => ({ recovered: true }),
+    };
+    const flags = createCachedFeatureFlags({ cache, source });
+    expect(await flags.all()).toEqual({ recovered: true });
+    expect(await flags.isEnabled("recovered")).toBe(true);
+  });
+
+  it("supports a named OpenFeature domain", async () => {
+    const flags = createOpenFeatureFlags({
+      flags: { "domain-flag": true },
+      domain: "tenant-a",
+    });
+    expect(await flags.isEnabled("domain-flag")).toBe(true);
+  });
+
+  it("uses a custom listFlags enumeration when provided", async () => {
+    const flags = createOpenFeatureFlags({
+      listFlags: async () => ({ custom: true }),
+    });
+    expect(await flags.all()).toEqual({ custom: true });
   });
 });
 
